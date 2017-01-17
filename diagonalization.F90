@@ -138,7 +138,7 @@ subroutine diagonalization(iteration,ismysubspace)
      !$OMP PRIVATE(dimSubspace,subspaceMatrix,subspaceEigen) &
      !$OMP PRIVATE(start_input,start_output,count_eigenvector) &
      !$OMP PRIVATE(iinput,ioperation,ireference,ichain) &
-     !$OMP PRIVATE(jinput,joperation,jreference,flag_coef,icoef) &
+     !$OMP PRIVATE(jinput,joperation,jreference,flag_coef,flag_BCS_coef,icoef) &
      !$OMP PRIVATE(invariant_matrix_type,channel,coefficientNondiagonal) &
      !$OMP PRIVATE(work,isubl,isubr,j,ierr)
      do isub=1, numberOfSubspace
@@ -213,7 +213,7 @@ subroutine diagonalization(iteration,ismysubspace)
                  if (hami%flag_BCS) then
                  do icoef=1, hami%numberOfBCSCoefficient
                     if ((ioperation .eq. coefficient_BCS(icoef,1)) .and. (joperation .eq. coefficient_BCS(icoef,2)) .and. (ireference .eq. jreference)) then
-                        frag_BCS_coef=.true.
+                        flag_BCS_coef=.true.
                         channelBCS=coefficient_BCS(icoef,3)
 
                     end if

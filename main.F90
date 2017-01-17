@@ -36,7 +36,7 @@ program main
   allocate( chain_nondiagonal(hami%indexOfFirstIteration:hami%numberOfIteration+1, &
        hami%numberOfChain))
 
-  if (flag_BCS) then
+  if (hami%flag_BCS) then
     allocate (chain_BCS(0:hami%numberOfIteration+1, hami%numberOfChain))
   end if
 
