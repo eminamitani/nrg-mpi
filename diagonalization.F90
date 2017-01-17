@@ -208,7 +208,7 @@ subroutine diagonalization(iteration,ismysubspace)
 !                        !switch the references
 !                        ireference=basis_input(start_input+jinput-1)%reference
 !                        jreference=basis_input(start_input+iinput-1)%reference
-!                    end if
+                    end if
                  end do
 
                  !BCS gap
