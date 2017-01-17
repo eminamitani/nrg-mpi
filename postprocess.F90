@@ -182,7 +182,7 @@ subroutine postprocess( iteration )
         write(Numitr,*) iteration
 
 
-        do ip=1, numberOfConductionMatrix
+        do ip=1, hami%numberOfConductionMatrix
             write(matrixnum,*) ip
             open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
 

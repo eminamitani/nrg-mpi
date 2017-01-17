@@ -207,4 +207,23 @@ subroutine invariantMatrix
   call stopCount ! invMat:Allgather
 
   call stopCount
+
+  !for debugging purpose only
+  if (my_rank .eq. 0 .and. iteration < numberOfIteration) then
+        write(Numitr,*) iteration
+
+
+        do matrixkind=1, hami%numberOfConductionMatrix
+            write(matrixnum,*) ip
+            open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
+
+            do iright=1, hami%numberOfBasis
+            do ileft=1, hami%numberOfBasis
+            write(110, *) invariant_matrix(iright,ileft,matrixkind)
+            end do
+            end do
+            close(110)
+        end do
+
+    end if
 end subroutine invariantMatrix
