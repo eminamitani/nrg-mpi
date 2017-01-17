@@ -69,6 +69,12 @@ subroutine invariantMatrix
 
   invariant_matrix=0.0d0
 
+ !total charge and total Sz conservation law
+  chargeStart = hami%conservationBlock(1,1)
+  chargeEnd   = hami%conservationBlock(1,2)
+  spinStart   = hami%conservationBlock(2,1)
+  spinEnd     = hami%conservationBlock(2,2)
+
   !$OMP PARALLEL DO &
   !$OMP PRIVATE(ileft,iright) &
   !$OMP PRIVATE(conserv_left,conserv_right) &
@@ -95,19 +101,28 @@ subroutine invariantMatrix
         !except the physically unmeaning pattern,
         !this depends on the type of model Hamiltonian
 
-        !total charge and total Sz conservation law
-        chargeStart = hami%conservationBlock(1,1)
-        chargeEnd   = hami%conservationBlock(1,2)
-        spinStart   = hami%conservationBlock(2,1)
-        spinEnd     = hami%conservationBlock(2,2)
+        if ((chargeStart .eq. chargeEnd) .and. (chargeStart .eq. 0)) then
 
-        diffQ   = sum(conserv_left%basis(chargeStart:chargeEnd) &
-             - conserv_right%basis(chargeStart:chargeEnd))
-        diffSSz = sum(conserv_left%basis(spinStart:spinEnd) &
-                - conserv_right%basis(spinStart:spinEnd))
+        !only Sz conservation
 
-        if(diffQ .ne. 1 .or. abs(diffSSz) .ne. 1) then
-           cycle loop_right
+            diffSSz = sum(conserv_left%basis(spinStart:spinEnd) &
+                    - conserv_right%basis(spinStart:spinEnd))
+            if (abs(diffSSz) .ne. 1) then
+                cycle loop_right
+            end if
+
+        else
+
+            diffQ   = sum(conserv_left%basis(chargeStart:chargeEnd) &
+                 - conserv_right%basis(chargeStart:chargeEnd))
+            diffSSz = sum(conserv_left%basis(spinStart:spinEnd) &
+                    - conserv_right%basis(spinStart:spinEnd))
+
+
+            if(diffQ .ne. 1 .or. abs(diffSSz) .ne. 1) then
+               cycle loop_right
+            end if
+
         end if
 
         !seeking the origin of each basis

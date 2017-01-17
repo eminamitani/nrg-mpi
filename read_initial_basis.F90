@@ -182,6 +182,25 @@ subroutine read_initial_basis
      end do
   end if
 
+  if (hami%flag_BCS) then
+!chain for BCS
+    do i=1, hami%numberOfChain
+    read (20,*) tmp_character
+    print*, "read ::", tmp_character
+    do j=0, hami%numberOfIteration+1
+    read(20,*) chain_bcs(j,i)
+    print*, j,  chain_bcs(j,i)
+    end do
+    end do
+!coefficient for BCS
+
+    read (20,*) tmp_character
+    print*, "read ::", tmp_character
+    do i=1, hami%numberOfBCSCoefficient
+    read(20,*) coefficient_BCS(i,1),coefficient_BCS(i,2),coefficient_BCS(i,3)
+    end do
+  end if
+
   close(20)
 
 end subroutine read_initial_basis
