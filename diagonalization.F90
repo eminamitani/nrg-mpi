@@ -189,6 +189,8 @@ subroutine diagonalization(iteration,ismysubspace)
 !                 end if
 
                  flag_coef=.false.
+                 flag_BCS_coef =.false.
+
                  do icoef=1, hami%numberOfCoefficient
                     if(ioperation .eq. coefficient_diagonalization_type(icoef,1) &
                          .and. joperation .eq. coefficient_diagonalization_type(icoef,2)) then
