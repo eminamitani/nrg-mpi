@@ -854,6 +854,8 @@ contains
     if (my_rank .eq. 0) then
        ! default values
        numberOfCoefficientImpurity = 0
+       flag_BCS=.false.
+       numberOfBCSCoefficient=0
 
        open(10,file="hamiltonianInfo.dat")
        read(10,hamiltonianInfo)
