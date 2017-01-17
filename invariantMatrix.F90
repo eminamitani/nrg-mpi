@@ -40,6 +40,7 @@ subroutine invariantMatrix
 
   integer :: p, m
   integer :: ierr
+  character(50)::Numitr, matrixnum
 
   logical :: flag_parallel !flag for parallel or not
 
@@ -209,12 +210,12 @@ subroutine invariantMatrix
   call stopCount
 
   !for debugging purpose only
-  if (my_rank .eq. 0 .and. iteration < numberOfIteration) then
+  if (my_rank .eq. 0 .and. iteration < hami%numberOfIteration) then
         write(Numitr,*) iteration
 
 
         do matrixkind=1, hami%numberOfConductionMatrix
-            write(matrixnum,*) ip
+            write(matrixnum,*) matrixkind
             open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
 
             do iright=1, hami%numberOfBasis
