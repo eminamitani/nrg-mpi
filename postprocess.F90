@@ -186,8 +186,10 @@ subroutine postprocess( iteration )
             write(matrixnum,*) ip
             open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
 
-            do i=1, numberOfBasis*numberOfBasis
-            write(110, *) invariant_matrix(i+numberOfBasis*numberOfBasis*(ip-1))
+            do i=1, hami%numberOfBasis
+            do j=1, hami%numberOfBasis
+            write(110, *) invariant_matrix(j,i,ip)
+            end do
             end do
             close(110)
         end do
