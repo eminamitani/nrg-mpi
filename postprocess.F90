@@ -170,7 +170,7 @@ subroutine postprocess( iteration )
   call startCount("postprocess:invariant")
 
   if(iteration < hami%numberOfIteration) then
-     call invariantMatrix
+     call invariantMatrix(iteration)
 
      if (hami%flag_spectrum) call invariantMatrixForSpectrum
 

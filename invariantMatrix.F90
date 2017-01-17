@@ -1,4 +1,4 @@
-subroutine invariantMatrix
+subroutine invariantMatrix(iteration)
   use omp_lib
   use generall
   use parallel
@@ -19,7 +19,7 @@ subroutine invariantMatrix
   integer :: loadmin(0:numberOfProcess-1), myloadmin
   integer :: loadmax(0:numberOfProcess-1), myloadmax
   integer :: allload(0:numberOfProcess-1), myload
-
+  integer :: iteration
   integer :: ileft, iright
   type(basis_type) :: conserv_left, conserv_right
   integer :: chargeStart, chargeEnd, spinStart, spinEnd
@@ -210,7 +210,7 @@ subroutine invariantMatrix
   call stopCount
 
   !for debugging purpose only
-  if (my_rank .eq. 0 .and. iteration < hami%numberOfIteration) then
+  if (my_rank .eq. 0 ) then
         write(Numitr,*) iteration
 
 
