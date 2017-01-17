@@ -78,7 +78,7 @@ subroutine invariantMatrix
   !$OMP PARALLEL DO &
   !$OMP PRIVATE(ileft,iright) &
   !$OMP PRIVATE(conserv_left,conserv_right) &
-  !$OMP PRIVATE(chargeStart,chargeEnd,spinStart,spinEnd) &
+  !$OMP SHARED(chargeStart,chargeEnd,spinStart,spinEnd) &
   !$OMP PRIVATE(diffQ,diffSSz) &
   !$OMP PRIVATE(isub) &
   !$OMP PRIVATE(rmax_left,rmax_right) &

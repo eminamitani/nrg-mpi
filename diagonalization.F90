@@ -181,12 +181,12 @@ subroutine diagonalization(iteration,ismysubspace)
 
                  !making ipoeration < joperation, because only such processes are written in the coefficient file
                  ! due to the Hermite Hamiltonian (tnfn^dagger fn+1 +tnfn+1^dagger fn), inverse process always exist
-                 if (ioperation > joperation) then
-                    ioperation=basis_input(start_input+jinput-1)%operation
-                    ireference=basis_input(start_input+jinput-1)%reference
-                    joperation=basis_input(start_input+iinput-1)%operation
-                    jreference=basis_input(start_input+iinput-1)%reference
-                 end if
+!                 if (ioperation > joperation) then
+!                    ioperation=basis_input(start_input+jinput-1)%operation
+!                    ireference=basis_input(start_input+jinput-1)%reference
+!                    joperation=basis_input(start_input+iinput-1)%operation
+!                    jreference=basis_input(start_input+iinput-1)%reference
+!                 end if
 
                  flag_coef=.false.
                  flag_BCS_coef =.false.
@@ -198,16 +198,16 @@ subroutine diagonalization(iteration,ismysubspace)
                        invariant_matrix_type=coefficient_diagonalization_type(icoef,3)
                        channel=coefficient_diagonalization_type(icoef,4)
                        coefficientNondiagonal=coefficient_diagonalization(icoef)
-!                    else if (ioperation .eq. coefficient_diagonalization_type(icoef,2) &
-!                         .and. joperation .eq. coefficient_diagonalization_type(icoef,1)) then
-!                        flag_coef=.true.
-!                        invariant_matrix_type=coefficient_diagonalization_type(icoef,3)
-!                        channel=coefficient_diagonalization_type(icoef,4)
-!                        coefficientNondiagonal=coefficient_diagonalization(icoef)
-!
-!                        !switch the references
-!                        ireference=basis_input(start_input+jinput-1)%reference
-!                        jreference=basis_input(start_input+iinput-1)%reference
+                    else if (ioperation .eq. coefficient_diagonalization_type(icoef,2) &
+                         .and. joperation .eq. coefficient_diagonalization_type(icoef,1)) then
+                        flag_coef=.true.
+                        invariant_matrix_type=coefficient_diagonalization_type(icoef,3)
+                        channel=coefficient_diagonalization_type(icoef,4)
+                        coefficientNondiagonal=coefficient_diagonalization(icoef)
+
+                        !switch the references
+                        ireference=basis_input(start_input+jinput-1)%reference
+                        jreference=basis_input(start_input+iinput-1)%reference
                     end if
                  end do
 
