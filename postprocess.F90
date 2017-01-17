@@ -178,23 +178,6 @@ subroutine postprocess( iteration )
         print*,"iteration=", iteration, "size of invariant Matrix Spectrum=",size(invariant_matrix_spectrum)
      end if
 
-     if (my_rank .eq. 0 .and. iteration < numberOfIteration) then
-        write(Numitr,*) iteration
-
-
-        do ip=1, hami%numberOfConductionMatrix
-            write(matrixnum,*) ip
-            open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
-
-            do i=1, hami%numberOfBasis
-            do j=1, hami%numberOfBasis
-            write(110, *) invariant_matrix(j,i,ip)
-            end do
-            end do
-            close(110)
-        end do
-
-    end if
 
   end if
 
