@@ -89,6 +89,7 @@ subroutine diagonalization(iteration,ismysubspace)
   allocate( omp_eigenvector_displs(numberOfSubspace,0:numberOfProcess-1) )
   allocate( mpi_eigenvector_counts(0:numberOfProcess-1) )
 
+
   do p=0, numberOfProcess-1
      mpi_eigenvalue_counts(p) = 0
      mpi_eigenvector_counts(p) = 0
@@ -259,6 +260,7 @@ subroutine diagonalization(iteration,ismysubspace)
               end do inner
            end if
         end do ! iinput
+
 
         !TODO diagonalization
         allocate( work(10*dimSubspace) )

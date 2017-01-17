@@ -1,14 +1,14 @@
 ## for gfortran
-F90 = mpif90 -fopenmp -ggdb
-FPPFLAGS = -cpp
-FFLAGS= -O2
-LFLAGS= -llapack -lblas
+#F90 = mpif90 -fopenmp -ggdb
+#FPPFLAGS = -cpp 
+#FFLAGS= -O2
+#LFLAGS= -llapack -lblas
 
 ## for ifort
-#F90 = mpif90 -openmp
-#FPPFLAGS = -fpp
-#FFLAGS= -O2 -CB -traceback -mcmodel=large
-#LFLAGS=  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
+F90 = mpif90 -openmp
+FPPFLAGS = -fpp  -Ddebug -save-temps
+FFLAGS= -O2 -CB -traceback -mcmodel=large
+LFLAGS=  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
 
 
 ## for pgf90
