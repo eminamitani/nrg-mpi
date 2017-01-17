@@ -218,8 +218,8 @@ subroutine invariantMatrix(iteration)
             write(matrixnum,*) matrixkind
             open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix"//TRIM(ADJUSTL(matrixnum))//".txt")
 
-            do iright=1, hami%numberOfBasis
             do ileft=1, hami%numberOfBasis
+            do iright=1, hami%numberOfBasis
             write(110, *) invariant_matrix(iright,ileft,matrixkind)
             end do
             end do
