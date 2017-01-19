@@ -1,8 +1,8 @@
-subroutine invariantMatrix(iteration,ismysubspace)
+subroutine invariantMatrixDGEMM(iteration)
   use omp_lib
   use generall
   use parallel
-  use hamiltonian, only: Basis_type ! type
+  use hamiltonian, only: SubspaceInfo_type ! type
   use hamiltonian, only: hami ! in
   use hamiltonian, only: invariant_matrix ! in
   use hamiltonian, only: subspaceInfo ! in
@@ -24,7 +24,7 @@ subroutine invariantMatrix(iteration,ismysubspace)
   type(SubspaceInfo_type) :: subspace_left, subspace_right
   integer :: chargeStart, chargeEnd, spinStart, spinEnd
   integer :: diffQ, diffSSz
-  integer :: isub, j
+  integer :: isub, j, ip
   integer :: rmax_left, rmax_right
   integer :: eigenvec_min_left, eigenvec_min_right
   integer :: basis_min_left, basis_min_right
@@ -39,7 +39,6 @@ subroutine invariantMatrix(iteration,ismysubspace)
   integer :: icoef
   integer ::startl, startr
 
-  logical, intent(in) :: ismysubspace(numberOfSubspace,0:numberOfProcess-1)
   integer, allocatable :: keeped_basis_number(:)
   integer :: degeneracy_truncation
   !intermediate matrix for dgemm
@@ -51,7 +50,7 @@ subroutine invariantMatrix(iteration,ismysubspace)
   double precision, allocatable :: vectorL(:,:), vectorR(:,:), coefMatrix(:,:,:)
   external :: dgemm
 
-  integer :: p, m
+  integer :: p, m, startOfBasisOutput
   integer :: ierr
   character(50)::Numitr, matrixnum
 
@@ -75,12 +74,13 @@ subroutine invariantMatrix(iteration,ismysubspace)
   spinEnd     = hami%conservationBlock(2,2)
 
   !construct the information of the dimension after trancation
+  print*,"keeped basis"
 
-  if( allocated(keeped_basis_number) ) deallocate(keeped_basis_number)
   allocate(keeped_basis_number(numberOfSubspace))
 
   do isub=1,  numberOfSubspace
      degeneracy_truncation=0
+     startOfBasisOutput=1
 
            do j=1, hami%numberOfBasis
               if( all(subspaceInfo(isub)%basis(:)==basis_output(j)%basis(:)) ) then
@@ -94,10 +94,12 @@ subroutine invariantMatrix(iteration,ismysubspace)
 
   end do
 
+  print*,keeped_basis_number
+
   !$OMP PARALLEL DO &
   !$OMP PRIVATE(ileft,iright) &
   !$OMP PRIVATE(subspace_left,subspace_right) &
-  !$OMP SHARED(chargeStart,chargeEnd,spinStart,spinEnd) &
+  !$OMP SHARED(chargeStart,chargeEnd,spinStart,spinEnd,keeped_basis_number) &
   !$OMP PRIVATE(diffQ,diffSSz) &
   !$OMP PRIVATE(isub) &
   !$OMP PRIVATE(rmax_left,rmax_right) &
@@ -171,10 +173,10 @@ subroutine invariantMatrix(iteration,ismysubspace)
         ! Here, vectorL is stored as (matrix of eigenvector L)^T
         ! and vectorR is stored as (matrix of eigenvector R)^T
 
-        if( allocated(vectorL) ) deallocate(vectorL)
+
         allocate (vectorL(keeped_basis_number(ileft), rmax_left))
 
-        if( allocated(vectorR) ) deallocate(vectorR)
+
         allocate (vectorR(keeped_basis_number(iright), rmax_right))
 
         do isubl=1, keeped_basis_number(ileft)
@@ -185,8 +187,9 @@ subroutine invariantMatrix(iteration,ismysubspace)
             vectorR(isubr, 1:rmax_right)=eigenvector(eigenvec_min_right+(isubr-1)*rmax_right:eigenvec_min_right+isubr+rmax_right-1)
         end do
 
-        if( allocated(coefMatrix) ) deallocate(coefMatrix)
+
         allocate (coefMatrix(rmax_left,rmax_right,hami%numberOfConductionMatrix))
+
 
         do isubl=basis_min_left, basis_max_left
            variation_left=basis_input(isubl)%variation
@@ -203,7 +206,7 @@ subroutine invariantMatrix(iteration,ismysubspace)
               do icoef=1, hami%numberOfCoefficient
                  if (operation_left .eq. coefficient_invariant_matrix_type(icoef,1) &
                       .and. operation_right .eq. coefficient_invariant_matrix_type(icoef,2)) then
-                    coefMatrix(isubl,isubr,coefficient_invariant_matrix_type(icoef,3))=coefficient_invariant_matrix(icoef)
+                    coefMatrix(isubl-basis_min_left+1,isubr-basis_min_right+1,coefficient_invariant_matrix_type(icoef,3))=coefficient_invariant_matrix(icoef)
 
                  end if
               end do
@@ -211,15 +214,17 @@ subroutine invariantMatrix(iteration,ismysubspace)
         end do
 
         !dgemm
-        if( allocated(tmp1) ) deallocate(tmp1)
+
         allocate (tmp1(keeped_basis_number(ileft),rmax_right ))
 
-        if (allocated (invariant_matrix_sub)) deallocate (invariant_matrix_sub)
+
         allocate (invariant_matrix_sub(keeped_basis_number(ileft), keeped_basis_number(iright)))
 
 
+        do ip=1, hami%numberOfConductionMatrix
+
         !vectorL * coefMatrix
-        call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,1.0,vectorL,keeped_basis_number(ileft),coefMatrix,rmax_left,0.0,tmp1,keeped_basis_number(ileft))
+        call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,1.0,vectorL,keeped_basis_number(ileft),coefMatrix(:,:,ip),rmax_left,0.0,tmp1,keeped_basis_number(ileft))
         !tmp1*vectorR^T
         call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,1.0,tmp1,rmax_left,vectorR,keeped_basis_number(iright),0.0,invariant_matrix_sub,rmax_left)
 
@@ -229,14 +234,20 @@ subroutine invariantMatrix(iteration,ismysubspace)
 
         do isubl=1, keeped_basis_number(ileft)
          do isubr=1, keeped_basis_number(iright)
-          invariant_matrix(startl+isubl-1, startr+isubr-1)=invariant_matrix_sub(osubl,isubr)
+
+          invariant_matrix(startl+isubl-1, startr+isubr-1,ip)=invariant_matrix_sub(isubl,isubr)
+          end do
          end do
         end do
+
+        deallocate(vectorL, vectorR, coefMatrix, tmp1, invariant_matrix_sub)
 
 
      end do loop_right
   end do loop_left
   !$OMP END PARALLEL DO
+
+ deallocate (keeped_basis_number)
 
   call stopCount
   call startCount("invMat:Allgather")
@@ -277,4 +288,4 @@ subroutine invariantMatrix(iteration,ismysubspace)
         end do
 
     end if
-end subroutine invariantMatrix
+end subroutine invariantMatrixDGEMM

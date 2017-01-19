@@ -4,8 +4,8 @@
 #FFLAGS= -O2
 #LFLAGS= -llapack -lblas
 
-## for ifort
-F90 = mpif90 -openmp
+## for ifort no omp
+F90 = mpif90 
 FPPFLAGS = -fpp  -Ddebug -save-temps
 FFLAGS= -O2 -CB -traceback -mcmodel=large
 LFLAGS=  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core
@@ -24,7 +24,7 @@ OBJECTS = \
 	invariantMatrix.o nrgIteration.o prepareBasis.o \
 	diagonalization.o postprocess.o initializeReducedDensity.o \
 	reducedDensityMatrix.o invariantMatrixForSpectrum.o \
-	calculateSpectrum.o initialState.o 
+	calculateSpectrum.o initialState.o invariantMatrixDGEMM.o
 
 MODULE = module.F90
 

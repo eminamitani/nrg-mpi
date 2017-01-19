@@ -170,7 +170,12 @@ subroutine postprocess( iteration )
   call startCount("postprocess:invariant")
 
   if(iteration < hami%numberOfIteration) then
-     call invariantMatrix(iteration)
+     !call invariantMatrix(iteration)
+
+     !use DGEMM version
+     print*, "invariant Matrix routine"
+     call invariantMatrixDGEMM(iteration)
+
 
      if (hami%flag_spectrum) call invariantMatrixForSpectrum
 
