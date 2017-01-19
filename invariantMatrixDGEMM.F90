@@ -1,4 +1,4 @@
-subroutine invariantMatrix(iteration)
+subroutine invariantMatrix(iteration,ismysubspace)
   use omp_lib
   use generall
   use parallel
@@ -21,10 +21,10 @@ subroutine invariantMatrix(iteration)
   integer :: allload(0:numberOfProcess-1), myload
   integer :: iteration
   integer :: ileft, iright
-  type(basis_type) :: conserv_left, conserv_right
+  type(SubspaceInfo_type) :: subspace_left, subspace_right
   integer :: chargeStart, chargeEnd, spinStart, spinEnd
   integer :: diffQ, diffSSz
-  integer :: isub
+  integer :: isub, j
   integer :: rmax_left, rmax_right
   integer :: eigenvec_min_left, eigenvec_min_right
   integer :: basis_min_left, basis_min_right
@@ -37,6 +37,19 @@ subroutine invariantMatrix(iteration)
   integer :: matrixkind
   logical :: flag_coef
   integer :: icoef
+  integer ::startl, startr
+
+  logical, intent(in) :: ismysubspace(numberOfSubspace,0:numberOfProcess-1)
+  integer, allocatable :: keeped_basis_number(:)
+  integer :: degeneracy_truncation
+  !intermediate matrix for dgemm
+  double precision, allocatable :: tmp1(:,:)
+  !invariant matrix for subspace
+  double precision, allocatable :: invariant_matrix_sub(:,:)
+
+
+  double precision, allocatable :: vectorL(:,:), vectorR(:,:), coefMatrix(:,:,:)
+  external :: dgemm
 
   integer :: p, m
   integer :: ierr
@@ -47,21 +60,6 @@ subroutine invariantMatrix(iteration)
   call startCount("invMat")
   call startCount("invMat:omp")
 
-  !if the numberOfBasis < numberOfProcess, avoid to paralell
-  if (hami%numberOfBasis < numberOfProcess*4 ) then
-     if(my_rank .eq. 0) print*, "too small matrix, avoid parallel process"
-     !do calculation for all matrix in each rank
-     myloadmin = 1
-     myloadmax = hami%numberOfBasis
-     myload    = myloadmax - myloadmin + 1
-     flag_parallel= .false.
-  else
-     call loadbalance2( loadmin, loadmax, allload )
-     myloadmin = loadmin(my_rank)
-     myloadmax = loadmax(my_rank)
-     myload    = allload(my_rank)
-     flag_parallel= .true.
-  end if
 
   if( allocated(invariant_matrix) ) deallocate(invariant_matrix)
   allocate( invariant_matrix &
@@ -76,9 +74,29 @@ subroutine invariantMatrix(iteration)
   spinStart   = hami%conservationBlock(2,1)
   spinEnd     = hami%conservationBlock(2,2)
 
+  !construct the information of the dimension after trancation
+
+  if( allocated(keeped_basis_number) ) deallocate(keeped_basis_number)
+  allocate(keeped_basis_number(numberOfSubspace))
+
+  do isub=1,  numberOfSubspace
+     degeneracy_truncation=0
+
+           do j=1, hami%numberOfBasis
+              if( all(subspaceInfo(isub)%basis(:)==basis_output(j)%basis(:)) ) then
+                 if(startOfBasisOutput > j) then
+                    startOfBasisOutput=j
+                 end if
+                 degeneracy_truncation=degeneracy_truncation+1
+              end if
+           end do
+    keeped_basis_number(isub)=degeneracy_truncation
+
+  end do
+
   !$OMP PARALLEL DO &
   !$OMP PRIVATE(ileft,iright) &
-  !$OMP PRIVATE(conserv_left,conserv_right) &
+  !$OMP PRIVATE(subspace_left,subspace_right) &
   !$OMP SHARED(chargeStart,chargeEnd,spinStart,spinEnd) &
   !$OMP PRIVATE(diffQ,diffSSz) &
   !$OMP PRIVATE(isub) &
@@ -90,12 +108,20 @@ subroutine invariantMatrix(iteration)
   !$OMP PRIVATE(variation_left,variation_right) &
   !$OMP PRIVATE(operation_left,operation_right) &
   !$OMP PRIVATE(diff_var_left,diff_var_right,coef) &
-  !$OMP PRIVATE(matrixkind,flag_coef,icoef)
-  do ileft=myloadmin, myloadmax
-     conserv_left = basis_output(ileft)
+  !$OMP PRIVATE(matrixkind,flag_coef,icoef)&
+  !$OMP PRIVATE(vectorL, vectorR, coefMatrix)&
+  !$OMP PRIVATE(startl,startr)
 
-     loop_right:do iright=1,hami%numberOfBasis
-        conserv_right = basis_output(iright)
+
+
+  loop_left:do ileft=1, numberOfSubspace
+     if (keeped_basis_number(ileft) .eq. 0) cycle loop_left
+     subspace_left = subspaceInfo(ileft)
+
+     loop_right:do iright=1,numberOfSubspace
+        if (keeped_basis_number(iright) .eq. 0) cycle loop_left
+
+        subspace_right = subspaceInfo(iright)
 
         !calculate <ileft | f^dagger |iright> type  invariant matrix element
 
@@ -106,18 +132,18 @@ subroutine invariantMatrix(iteration)
 
         !only Sz conservation
 
-            diffSSz = sum(conserv_left%basis(spinStart:spinEnd) &
-                    - conserv_right%basis(spinStart:spinEnd))
+            diffSSz = sum(subspace_left%basis(spinStart:spinEnd) &
+                    - subspace_right%basis(spinStart:spinEnd))
             if (abs(diffSSz) .ne. 1) then
                 cycle loop_right
             end if
 
         else
 
-            diffQ   = sum(conserv_left%basis(chargeStart:chargeEnd) &
-                 - conserv_right%basis(chargeStart:chargeEnd))
-            diffSSz = sum(conserv_left%basis(spinStart:spinEnd) &
-                    - conserv_right%basis(spinStart:spinEnd))
+            diffQ   = sum(subspace_left%basis(chargeStart:chargeEnd) &
+                 - subspace_right%basis(chargeStart:chargeEnd))
+            diffSSz = sum(subspace_left%basis(spinStart:spinEnd) &
+                    - subspace_right%basis(spinStart:spinEnd))
 
 
             if(diffQ .ne. 1 .or. abs(diffSSz) .ne. 1) then
@@ -126,32 +152,42 @@ subroutine invariantMatrix(iteration)
 
         end if
 
-        !seeking the origin of each basis
-        !first, find corresponding subspace
-        do isub=1, numberOfSubspace
-           ! count difference
-           if( all(conserv_right%basis(:) == subspaceInfo(isub)%basis(:)) ) then
-              rmax_right         = subspaceInfo(isub)%dimension
-              eigenvec_min_right = subspaceInfo(isub)%count_eigenvector
-              basis_min_right    = subspaceInfo(isub)%start_input
-              basis_max_right    = basis_min_right+rmax_right-1
-           end if
 
-           if( all(conserv_left%basis(:) == subspaceInfo(isub)%basis(:)) ) then
-              rmax_left          = subspaceInfo(isub)%dimension
-              eigenvec_min_left  = subspaceInfo(isub)%count_eigenvector
-              basis_min_left     = subspaceInfo(isub)%start_input
+              rmax_right         = subspaceInfo(iright)%dimension
+              eigenvec_min_right = subspaceInfo(iright)%count_eigenvector
+              basis_min_right    = subspaceInfo(iright)%start_input
+              basis_max_right    = basis_min_right+rmax_right-1
+
+
+
+              rmax_left          = subspaceInfo(ileft)%dimension
+              eigenvec_min_left  = subspaceInfo(ileft)%count_eigenvector
+              basis_min_left     = subspaceInfo(ileft)%start_input
               basis_max_left     = basis_min_left+rmax_left-1
-           end if
-        end do
+
 
         !constructing matrix of eigenvector and coefficient matrix
         !Invariant matrix = (matrix of eigenvector L)^T * coefficient matrix * (matrix of eigenvector R)
+        ! Here, vectorL is stored as (matrix of eigenvector L)^T
+        ! and vectorR is stored as (matrix of eigenvector R)^T
 
+        if( allocated(vectorL) ) deallocate(vectorL)
+        allocate (vectorL(keeped_basis_number(ileft), rmax_left))
 
+        if( allocated(vectorR) ) deallocate(vectorR)
+        allocate (vectorR(keeped_basis_number(iright), rmax_right))
 
-        !summung up the contribution of eigenvector
-        !loop for each subspace
+        do isubl=1, keeped_basis_number(ileft)
+            vectorL(isubl, 1:rmax_left)=eigenvector(eigenvec_min_left+(isubl-1)*rmax_left:eigenvec_min_left+isubl+rmax_left-1)
+        end do
+
+        do isubr=1, keeped_basis_number(iright)
+            vectorR(isubr, 1:rmax_right)=eigenvector(eigenvec_min_right+(isubr-1)*rmax_right:eigenvec_min_right+isubr+rmax_right-1)
+        end do
+
+        if( allocated(coefMatrix) ) deallocate(coefMatrix)
+        allocate (coefMatrix(rmax_left,rmax_right,hami%numberOfConductionMatrix))
+
         do isubl=basis_min_left, basis_max_left
            variation_left=basis_input(isubl)%variation
            operation_left=basis_input(isubl)%operation
@@ -163,41 +199,50 @@ subroutine invariantMatrix(iteration)
                  cycle loop_sub_r
               end if
 
-              diff_var_left=isubl-basis_min_left
-              diff_var_right=isubr-basis_min_right
-              coef=0.0d0
-              flag_coef=.false.
               !sarching corresponding coefficient in each pair of basis
               do icoef=1, hami%numberOfCoefficient
                  if (operation_left .eq. coefficient_invariant_matrix_type(icoef,1) &
                       .and. operation_right .eq. coefficient_invariant_matrix_type(icoef,2)) then
-                    coef=coefficient_invariant_matrix(icoef)
-                    matrixkind=coefficient_invariant_matrix_type(icoef,3)
-                    flag_coef=.true.
+                    coefMatrix(isubl,isubr,coefficient_invariant_matrix_type(icoef,3))=coefficient_invariant_matrix(icoef)
+
                  end if
               end do
-
-              if (.not.flag_coef) then
-                 cycle loop_sub_r
-              end if
-
-              invariant_matrix(iright,ileft,matrixkind) &
-                   = invariant_matrix(iright,ileft,matrixkind) &
-                   + coef &
-                   * eigenvector(eigenvec_min_left &
-                   +   rmax_left *(conserv_left%reference-1 ) &
-                   +   diff_var_left) &
-                   * eigenvector(eigenvec_min_right &
-                   +   rmax_right*(conserv_right%reference-1) &
-                   +   diff_var_right)
            end do loop_sub_r
         end do
+
+        !dgemm
+        if( allocated(tmp1) ) deallocate(tmp1)
+        allocate (tmp1(keeped_basis_number(ileft),rmax_right ))
+
+        if (allocated (invariant_matrix_sub)) deallocate (invariant_matrix_sub)
+        allocate (invariant_matrix_sub(keeped_basis_number(ileft), keeped_basis_number(iright)))
+
+
+        !vectorL * coefMatrix
+        call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,1.0,vectorL,keeped_basis_number(ileft),coefMatrix,rmax_left,0.0,tmp1,keeped_basis_number(ileft))
+        !tmp1*vectorR^T
+        call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,1.0,tmp1,rmax_left,vectorR,keeped_basis_number(iright),0.0,invariant_matrix_sub,rmax_left)
+
+        !copy to invariant Matrix
+        startl=sum(keeped_basis_number(1:ileft-1))+1
+        startr=sum(keeped_basis_number(1:iright-1))+1
+
+        do isubl=1, keeped_basis_number(ileft)
+         do isubr=1, keeped_basis_number(iright)
+          invariant_matrix(startl+isubl-1, startr+isubr-1)=invariant_matrix_sub(osubl,isubr)
+         end do
+        end do
+
+
      end do loop_right
-  end do
+  end do loop_left
   !$OMP END PARALLEL DO
 
   call stopCount
   call startCount("invMat:Allgather")
+
+
+!MPI part is not implemented yet
   if (flag_parallel) then
      do m=1, hami%numberOfConductionMatrix
         call MPI_ALLGATHERV( &

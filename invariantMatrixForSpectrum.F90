@@ -103,11 +103,7 @@ subroutine invariantMatrixForSpectrum
 
         !except the physically unmeaning pattern,
         !this depends on the type of model Hamiltonian
-        !total charge and total Sz conservation law
-        chargeStart = hami%conservationBlock(1,1)
-        chargeEnd   = hami%conservationBlock(1,2)
-        spinStart   = hami%conservationBlock(2,1)
-        spinEnd     = hami%conservationBlock(2,2)
+
 
         allocate( difference(hami%numberOfVariation) )
         allocate( flags(hami%numberOfMatrix) )

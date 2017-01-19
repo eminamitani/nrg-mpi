@@ -15,8 +15,10 @@ subroutine diagonalization(iteration,ismysubspace)
   use hamiltonian, only: sizeOfEigenvector ! out
   use hamiltonian, only: chain_diagonal ! in
   use hamiltonian, only: chain_nondiagonal ! in
+  use hamiltonian, only: chain_BCS ! in
   use hamiltonian, only: coefficient_diagonalization_type ! in
   use hamiltonian, only: coefficient_diagonalization ! in
+  use hamiltonian, only: coefficient_BCS !in
   use hamiltonian, only: invariant_matrix ! in
   use hamiltonian, only: allocateType
   use system, only: param ! in
@@ -33,9 +35,9 @@ subroutine diagonalization(iteration,ismysubspace)
   double precision, allocatable :: subspaceMatrix(:,:)
   integer :: start_input, start_output, count_eigenvector
   integer :: iinput, jinput, ichain, ioperation, joperation, ireference, jreference, icoef
-  integer :: invariant_matrix_type, channel
+  integer :: invariant_matrix_type, channel, channelBCS
   double precision :: coefficientNondiagonal
-  logical :: flag_coef
+  logical :: flag_coef, flag_BCS_coef
   double precision,allocatable::subspaceEigen(:),work(:)
   external :: dsyev
   integer :: ierr
@@ -87,6 +89,7 @@ subroutine diagonalization(iteration,ismysubspace)
   allocate( omp_eigenvector_displs(numberOfSubspace,0:numberOfProcess-1) )
   allocate( mpi_eigenvector_counts(0:numberOfProcess-1) )
 
+
   do p=0, numberOfProcess-1
      mpi_eigenvalue_counts(p) = 0
      mpi_eigenvector_counts(p) = 0
@@ -136,7 +139,7 @@ subroutine diagonalization(iteration,ismysubspace)
      !$OMP PRIVATE(dimSubspace,subspaceMatrix,subspaceEigen) &
      !$OMP PRIVATE(start_input,start_output,count_eigenvector) &
      !$OMP PRIVATE(iinput,ioperation,ireference,ichain) &
-     !$OMP PRIVATE(jinput,joperation,jreference,flag_coef,icoef) &
+     !$OMP PRIVATE(jinput,joperation,jreference,flag_coef,flag_BCS_coef,icoef) &
      !$OMP PRIVATE(invariant_matrix_type,channel,coefficientNondiagonal) &
      !$OMP PRIVATE(work,isubl,isubr,j,ierr)
      do isub=1, numberOfSubspace
@@ -179,14 +182,16 @@ subroutine diagonalization(iteration,ismysubspace)
 
                  !making ipoeration < joperation, because only such processes are written in the coefficient file
                  ! due to the Hermite Hamiltonian (tnfn^dagger fn+1 +tnfn+1^dagger fn), inverse process always exist
-                 if (ioperation > joperation) then
-                    ioperation=basis_input(start_input+jinput-1)%operation
-                    ireference=basis_input(start_input+jinput-1)%reference
-                    joperation=basis_input(start_input+iinput-1)%operation
-                    jreference=basis_input(start_input+iinput-1)%reference
-                 end if
+!                 if (ioperation > joperation) then
+!                    ioperation=basis_input(start_input+jinput-1)%operation
+!                    ireference=basis_input(start_input+jinput-1)%reference
+!                    joperation=basis_input(start_input+iinput-1)%operation
+!                    jreference=basis_input(start_input+iinput-1)%reference
+!                 end if
 
                  flag_coef=.false.
+                 flag_BCS_coef =.false.
+
                  do icoef=1, hami%numberOfCoefficient
                     if(ioperation .eq. coefficient_diagonalization_type(icoef,1) &
                          .and. joperation .eq. coefficient_diagonalization_type(icoef,2)) then
@@ -194,11 +199,34 @@ subroutine diagonalization(iteration,ismysubspace)
                        invariant_matrix_type=coefficient_diagonalization_type(icoef,3)
                        channel=coefficient_diagonalization_type(icoef,4)
                        coefficientNondiagonal=coefficient_diagonalization(icoef)
+                    else if (ioperation .eq. coefficient_diagonalization_type(icoef,2) &
+                         .and. joperation .eq. coefficient_diagonalization_type(icoef,1)) then
+                        flag_coef=.true.
+                        invariant_matrix_type=coefficient_diagonalization_type(icoef,3)
+                        channel=coefficient_diagonalization_type(icoef,4)
+                        coefficientNondiagonal=coefficient_diagonalization(icoef)
+
+                        !switch the references
+                        ireference=basis_input(start_input+jinput-1)%reference
+                        jreference=basis_input(start_input+iinput-1)%reference
                     end if
                  end do
 
-                 if(.not.flag_coef) cycle inner
+                 !BCS gap
+                 if (hami%flag_BCS) then
+                 do icoef=1, hami%numberOfBCSCoefficient
+                    if ((ioperation .eq. coefficient_BCS(icoef,1)) .and. (joperation .eq. coefficient_BCS(icoef,2)) .and. (ireference .eq. jreference)) then
+                        flag_BCS_coef=.true.
+                        channelBCS=coefficient_BCS(icoef,3)
 
+                    end if
+                 end do
+                 end if
+
+                 if((.not.flag_coef) .and. (.not. flag_BCS_coef)) cycle inner
+
+                 !normal lead
+                 if (flag_coef) then
                  subspaceMatrix(iinput,jinput) &
                       = chain_nondiagonal(iteration, channel) &
                       * coefficientNondiagonal &
@@ -206,6 +234,15 @@ subroutine diagonalization(iteration,ismysubspace)
 
                  subspaceMatrix(jinput,iinput) &
                       = subspaceMatrix(iinput,jinput)
+                 end if
+
+                 !BCS paring
+                 if (hami%flag_BCS) then
+                    if (flag_BCS_coef) then
+                    subspaceMatrix(iinput, jinput) =chain_bcs(iteration+1, channelBCS)
+                    subspaceMatrix(jinput, iinput) =subspaceMatrix(iinput, jinput)
+                    end if
+                 end if
 
 !!$                 !debug for general QSz
 !!$                 if (iteration==0 .and. isub==11) then
@@ -223,6 +260,7 @@ subroutine diagonalization(iteration,ismysubspace)
               end do inner
            end if
         end do ! iinput
+
 
         !TODO diagonalization
         allocate( work(10*dimSubspace) )

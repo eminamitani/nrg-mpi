@@ -744,6 +744,8 @@ module hamiltonian
      ! each iteration
      integer :: numberOfCoefficientImpurity
      integer :: numberOfOperation
+     !number of BCS paring coefficient
+     integer :: numberOfBCSCoefficient
      integer :: indexOfFirstIteration
      ! whether calculate the spectrum related value
      logical :: flag_spectrum
@@ -752,6 +754,9 @@ module hamiltonian
      !these entities are for CFS-NRG run
      integer :: startTrancation
      logical :: flag_truncation
+     !whether BCS type superconducting lead exist or not
+     logical :: flag_BCS
+
   end type HamiltonianInfo_type
   type(HamiltonianInfo_type) :: hami
 
@@ -765,6 +770,9 @@ module hamiltonian
   !array for wilson chain. diagonal part and nondiagonal part
   double precision, allocatable :: chain_diagonal(:,:)
   double precision, allocatable :: chain_nondiagonal(:,:)
+  !additional chain element in the case of BCS superconductor
+  double precision,allocatable :: chain_BCS(:,:)
+
   integer ::lowOfInput, lowOfOutput, lowOfSubspace
   !contain number of basis in each iteration
   integer :: numberOfBasis_old,numberOfBasis_full
@@ -795,6 +803,9 @@ module hamiltonian
 
   integer,allocatable :: coefficient_diagonalization_type(:,:)
   double precision, allocatable :: coefficient_diagonalization(:)
+  !define the basis pair contribute to BCS type paring
+  integer, allocatable :: coefficient_BCS(:,:)
+
   double precision, allocatable :: invariant_matrix(:,:,:)
   double precision, allocatable :: invariant_matrix_spectrum(:,:,:)
   double precision, allocatable :: invariant_matrix_spectrum_initial(:,:,:)
@@ -826,21 +837,25 @@ contains
     integer :: numberOfCoefficient
     integer :: numberOfCoefficientImpurity
     integer :: numberOfOperation
+    integer :: numberOfBCSCoefficient
     integer :: indexOfFirstIteration
     logical :: flag_spectrum
     logical :: flag_local
+    logical :: flag_BCS
 
     namelist /hamiltonianInfo/ &
          numberOfIteration, numberOfChain, numberOfVariation, conservationBlock, &
-         numberOfMatrix, numberOfConductionMatrix, numberOfBasis, numberOfCoefficient, &
+         numberOfMatrix, numberOfConductionMatrix, numberOfBasis, numberOfCoefficient, numberOfBCSCoefficient, &
          numberOfCoefficientImpurity, numberOfOperation, indexOfFirstIteration, &
-         flag_spectrum, flag_local
+         flag_spectrum, flag_local, flag_BCS
 
     call startCount("setupHami")
 
     if (my_rank .eq. 0) then
        ! default values
        numberOfCoefficientImpurity = 0
+       flag_BCS=.false.
+       numberOfBCSCoefficient=0
 
        open(10,file="hamiltonianInfo.dat")
        read(10,hamiltonianInfo)
@@ -856,9 +871,11 @@ contains
        hami%numberOfCoefficient         = numberOfCoefficient
        hami%numberOfCoefficientImpurity = numberOfCoefficientImpurity
        hami%numberOfOperation           = numberOfOperation
+       hami%numberOfBCSCoefficient      = numberOfBCSCoefficient
        hami%indexOfFirstIteration       = indexOfFirstIteration
        hami%flag_spectrum               = flag_spectrum
        hami%flag_local                  = flag_local
+       hami%flag_BCS                    = flag_BCS
        hami%startTrancation             = hami%numberOfIteration+1
        hami%flag_truncation             = .false.
     end if
@@ -915,6 +932,10 @@ contains
             ( hami%numberOfBasis, hami%numberOfBasis, hami%numberOfMatrix) )
        allocate( conservation_difference_spectrum &
             ( hami%numberOfMatrix, hami%numberOfVariation) )
+    end if
+
+    if (hami%flag_BCS) then
+        allocate(coefficient_BCS(1:hami%numberOfBCSCoefficient,1:3))
     end if
 
     !allocate(difference(1:numberOfDifference, 1:numberOfVariation))

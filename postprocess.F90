@@ -170,13 +170,15 @@ subroutine postprocess( iteration )
   call startCount("postprocess:invariant")
 
   if(iteration < hami%numberOfIteration) then
-     call invariantMatrix
+     call invariantMatrix(iteration)
 
      if (hami%flag_spectrum) call invariantMatrixForSpectrum
 
      if (my_rank .eq. 0) then
         print*,"iteration=", iteration, "size of invariant Matrix Spectrum=",size(invariant_matrix_spectrum)
      end if
+
+
   end if
 
   !! record the trucated number as an old one

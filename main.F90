@@ -36,6 +36,10 @@ program main
   allocate( chain_nondiagonal(hami%indexOfFirstIteration:hami%numberOfIteration+1, &
        hami%numberOfChain))
 
+  if (hami%flag_BCS) then
+    allocate (chain_BCS(0:hami%numberOfIteration+1, hami%numberOfChain))
+  end if
+
   !reading most initial input parameters
   if (my_rank .eq. 0) then
      call read_parameter
@@ -74,6 +78,7 @@ program main
   call MPI_BCAST( chain_nondiagonal(hami%indexOfFirstIteration,1), &
        size(chain_nondiagonal), MPI_DOUBLE_PRECISION, &
        0, MPI_COMM_WORLD, ierr )
+
   call MPI_BCAST( locationType(basis_output), &
        sizeofType(basis_output), MPI_BYTE, &
        0, MPI_COMM_WORLD, ierr )
@@ -116,6 +121,13 @@ program main
           size(invariant_matrix_spectrum), &
           MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr )
   end if
+
+  if(hami%flag_BCS) then
+    call MPI_BCAST( chain_BCS(0,1), &
+       size(chain_BCS), MPI_DOUBLE_PRECISION, &
+       0, MPI_COMM_WORLD, ierr )
+  end if
+
   call stopCount ! main:bcast
 
   !stock the initial state
