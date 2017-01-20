@@ -217,6 +217,8 @@ subroutine invariantMatrixDGEMM(iteration)
                 end do loop_sub_r
             end do
 
+            print*, ileft,":", iright
+
             print*, "vectorL"
             print*, vectorL
 
@@ -224,7 +226,10 @@ subroutine invariantMatrixDGEMM(iteration)
             print*, vectorR
 
             print*, "coefMatrix"
-            print*, coefMatrix
+            do ip=1, hami%numberOfConductionMatrix
+            print*, coefMatrix(:,:,ip)
+            
+            end do
 
 
 
@@ -240,8 +245,13 @@ subroutine invariantMatrixDGEMM(iteration)
 
                 !vectorL * coefMatrix
                 call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,1.0,vectorL,keeped_basis_number(ileft),coefMatrix(:,:,ip),rmax_left,0.0,tmp1,keeped_basis_number(ileft))
+                print*,"tmp1"
+                print*,tmp1
+
                 !tmp1*vectorR^T
                 call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,1.0,tmp1,rmax_left,vectorR,keeped_basis_number(iright),0.0,invariant_matrix_sub,rmax_left)
+                print*,"invariant"
+                print*, invariant_matrix_sub
 
                 !copy to invariant Matrix
                 startl=sum(keeped_basis_number(1:ileft-1))+1
@@ -269,6 +279,8 @@ subroutine invariantMatrixDGEMM(iteration)
     call stopCount
     call startCount("invMat:Allgather")
 
+    !test no parallel
+    flag_parallel=.false.
 
     !MPI part is not implemented yet
     if (flag_parallel) then
