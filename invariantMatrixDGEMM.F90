@@ -50,6 +50,7 @@ subroutine invariantMatrixDGEMM(iteration)
     double precision, allocatable :: vectorL(:,:), vectorR(:,:), coefMatrix(:,:,:)
     external :: dgemm
     double precision, parameter :: alpha=1.0, beta=0.0
+    integer:: rowA, columnA, rowB, columnB, rowC, columnC
 
     integer :: p, m, startOfBasisOutput
     integer :: ierr
@@ -65,6 +66,7 @@ subroutine invariantMatrixDGEMM(iteration)
     allocate( invariant_matrix &
         ( hami%numberOfBasis, hami%numberOfBasis, &
         hami%numberOfConductionMatrix) )
+    print*, "size of invariant_matrix:", hami%numberOfBasis
 
     invariant_matrix=0.0d0
 
@@ -122,7 +124,7 @@ subroutine invariantMatrixDGEMM(iteration)
         subspace_left = subspaceInfo(ileft)
 
         loop_right:do iright=1,numberOfSubspace
-            if (keeped_basis_number(iright) .eq. 0) cycle loop_left
+            if (keeped_basis_number(iright) .eq. 0) cycle loop_right
 
             subspace_right = subspaceInfo(iright)
 
@@ -172,14 +174,15 @@ subroutine invariantMatrixDGEMM(iteration)
             !constructing matrix of eigenvector and coefficient matrix
             !Invariant matrix = (matrix of eigenvector L)^T * coefficient matrix * (matrix of eigenvector R)
             ! Here, vectorL is stored as (matrix of eigenvector L)^T
-            ! and vectorR is stored as (matrix of eigenvector R)^T
+            ! and vectorR is stored as matrix of eigenvector R
 
 
+            !vector L transposed
             allocate (vectorL(keeped_basis_number(ileft), rmax_left))
             vectorL=0.0
 
 
-            allocate (vectorR(keeped_basis_number(iright), rmax_right))
+            allocate (vectorR(rmax_right,keeped_basis_number(iright)))
             vectorR=0.0
 
             do isubl=1, keeped_basis_number(ileft)
@@ -187,7 +190,7 @@ subroutine invariantMatrixDGEMM(iteration)
             end do
 
             do isubr=1, keeped_basis_number(iright)
-                vectorR(isubr, 1:rmax_right)=eigenvector(eigenvec_min_right+(isubr-1)*rmax_right:eigenvec_min_right+isubr+rmax_right-1)
+                vectorR(1:rmax_right, isubr)=eigenvector(eigenvec_min_right+(isubr-1)*rmax_right:eigenvec_min_right+isubr+rmax_right-1)
             end do
 
 
@@ -253,14 +256,31 @@ subroutine invariantMatrixDGEMM(iteration)
                 print*, coefMatrix(:,:,ip)
 
                 !vectorL * coefMatrix
-                call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,alpha,vectorL,keeped_basis_number(ileft),&
-                           coefMatrix(:,:,ip),rmax_left,beta,tmp1,keeped_basis_number(ileft))
+                rowA=keeped_basis_number(ileft)
+                columnA=rmax_left
+                rowB=rmax_left
+                columnB=rmax_right
+                rowC=keeped_basis_number(ileft)
+                columnC=rmax_right
+
+                call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
+                           coefMatrix(:,:,ip),rowB,beta,tmp1,rowC)
                 print*,"tmp1"
                 print*,tmp1
 
+                !tmp1--> A
+                rowA=keeped_basis_number(ileft)
+                columnA=rmax_right
+                !vectorR-->B
+                rowB=rmax_right
+                columnB=keeped_basis_number(iright)
+                !invariant -->C
+                rowC=keeped_basis_number(ileft)
+                columnC=keeped_basis_number(iright)
+
                 !tmp1*vectorR^T
-                call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,alpha,tmp1,rmax_left,&
-                           vectorR,keeped_basis_number(iright),beta,invariant_matrix_sub,rmax_left)
+                call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
+                           vectorR,rowB,beta,invariant_matrix_sub,rowC)
                 print*,"invariant"
                 print*, invariant_matrix_sub
 
