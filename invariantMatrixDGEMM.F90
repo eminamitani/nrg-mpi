@@ -253,12 +253,14 @@ subroutine invariantMatrixDGEMM(iteration)
                 print*, coefMatrix(:,:,ip)
 
                 !vectorL * coefMatrix
-                call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,alpha,vectorL,keeped_basis_number(ileft),coefMatrix(:,:,ip),rmax_left,beta,tmp1,keeped_basis_number(ileft))
+                call dgemm('N','N',keeped_basis_number(ileft),rmax_right,rmax_left,alpha,vectorL,keeped_basis_number(ileft),&
+                           coefMatrix(:,:,ip),rmax_left,beta,tmp1,keeped_basis_number(ileft))
                 print*,"tmp1"
                 print*,tmp1
 
                 !tmp1*vectorR^T
-                call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,alpha,tmp1,rmax_left,vectorR,keeped_basis_number(iright),beta,invariant_matrix_sub,rmax_left)
+                call dgemm('N','T',rmax_left, keeped_basis_number(iright),rmax_right,alpha,tmp1,rmax_left,&
+                           vectorR,keeped_basis_number(iright),beta,invariant_matrix_sub,rmax_left)
                 print*,"invariant"
                 print*, invariant_matrix_sub
 
@@ -266,10 +268,12 @@ subroutine invariantMatrixDGEMM(iteration)
                 startl=sum(keeped_basis_number(1:ileft-1))+1
                 startr=sum(keeped_basis_number(1:iright-1))+1
 
+                print*,"startl, startr:", startl, " ", startr
+
                 do isubl=1, keeped_basis_number(ileft)
                     do isubr=1, keeped_basis_number(iright)
-
-                        invariant_matrix(startl+isubl-1, startr+isubr-1,ip)=invariant_matrix_sub(isubl,isubr)
+                        !for memory access, invariant_matrix index is reverted
+                        invariant_matrix(startr+isubr-1, startl+isubl-1, ip)=invariant_matrix_sub(isubl,isubr)
                     end do
                 end do
 
