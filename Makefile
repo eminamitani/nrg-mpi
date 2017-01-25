@@ -5,7 +5,7 @@
 #LFLAGS= -llapack -lblas
 
 ## for ifort no omp
-F90 = mpif90 
+F90 = mpif90 -openmp
 FPPFLAGS = -fpp  -Ddebug -save-temps
 FFLAGS= -O2 -CB -traceback -mcmodel=large
 LFLAGS=  -lmkl_intel_lp64 -lmkl_sequential -lmkl_core

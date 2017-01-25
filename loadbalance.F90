@@ -69,6 +69,36 @@ subroutine loadbalance2( loadmin, loadmax, allload )
   end do
 end subroutine loadbalance2
 
+
+!subroutine for evaluate loadbalance in invariantMatrix calculation
+subroutine loadbalance3( loadmin, loadmax, allload, total )
+  use hamiltonian
+  use parallel
+  implicit none
+  integer, intent(in)  :: total
+  integer, intent(out) :: loadmin(0:numberOfProcess-1)
+  integer, intent(out) :: loadmax(0:numberOfProcess-1)
+  integer, intent(out) :: allload(0:numberOfProcess-1)
+  integer :: p
+
+  allload(:) = total/numberOfProcess
+
+  do p=0, numberOfProcess-1
+     if( sum(allload(:)) /= total ) then
+        allload(p) = allload(p) + 1
+     end if
+  end do
+
+  do p=0, numberOfProcess-1
+     if( p==0 ) then
+        loadmin(p) = 1
+     else
+        loadmin(p) = loadmin(p-1) + allload(p-1)
+     end if
+     loadmax(p) = loadmin(p) + allload(p) - 1
+  end do
+end subroutine loadbalance3
+
 subroutine loadbalanceDiagonalization2( ismysubspace )
   use hamiltonian
   use parallel

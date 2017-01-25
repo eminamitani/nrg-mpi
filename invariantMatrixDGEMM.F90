@@ -16,15 +16,15 @@ subroutine invariantMatrixDGEMM(iteration)
     implicit none
   include 'mpif.h'
 
-    integer :: loadmin(0:numberOfProcess-1), myloadmin
-    integer :: loadmax(0:numberOfProcess-1), myloadmax
-    integer :: allload(0:numberOfProcess-1), myload
+  integer :: loadmin(0:numberOfProcess-1), myloadmin
+  integer :: loadmax(0:numberOfProcess-1), myloadmax
+  integer :: allload(0:numberOfProcess-1), myload
     integer :: iteration
     integer :: ileft, iright
     type(SubspaceInfo_type) :: subspace_left, subspace_right
     integer :: chargeStart, chargeEnd, spinStart, spinEnd
     integer :: diffQ, diffSSz
-    integer :: isub, j, ip
+    integer :: isub, j, ip, i, ipair
     integer :: rmax_left, rmax_right
     integer :: eigenvec_min_left, eigenvec_min_right
     integer :: basis_min_left, basis_min_right
@@ -38,6 +38,7 @@ subroutine invariantMatrixDGEMM(iteration)
     logical :: flag_coef
     integer :: icoef
     integer ::startl, startr
+    integer, allocatable :: subspacePair(:,:)
 
     integer, allocatable :: keeped_basis_number(:)
     integer :: degeneracy_truncation
@@ -99,8 +100,37 @@ subroutine invariantMatrixDGEMM(iteration)
 
     print*,keeped_basis_number
 
+    !prepare the subspace pair set
+    if( allocated(subspacePair) ) deallocate(subspacePair)
+    allocate (subspacePair(numberOfSubspace*numberOfSubspace,2))
+
+    do i=1, numberOfSubspace
+        do j=1,numberOfSubspace
+            subspacePair((i-1)*numberOfSubspace+j,1)=i
+            subspacePair((i-1)*numberOfSubspace+j,2)=j
+        end do
+    end do
+
+       !loadbalancing
+
+    if (numberOfSubspace*numberOfSubspace < numberOfProcess*4 ) then
+        if (my_rank .eq. 0) print*, "invariantMatrix:: too small system size, avoid parallel process"
+        !do calculation for all matrix in each rank
+        myloadmin = 1
+        myloadmax = numberOfSubspace*numberOfSubspace
+        myload    = myloadmax - myloadmin + 1
+        flag_parallel= .false.
+    else
+        call loadbalance3( loadmin, loadmax, allload, numberOfSubspace*numberOfSubspace )
+        myloadmin = loadmin(my_rank)
+        myloadmax = loadmax(my_rank)
+        myload    = allload(my_rank)
+        flag_parallel= .true.
+    end if
+
+
     !$OMP PARALLEL DO &
-    !$OMP PRIVATE(ileft,iright) &
+    !$OMP PRIVATE(ipair, ileft,iright) &
     !$OMP PRIVATE(subspace_left,subspace_right) &
     !$OMP SHARED(chargeStart,chargeEnd,spinStart,spinEnd,keeped_basis_number) &
     !$OMP PRIVATE(diffQ,diffSSz) &
@@ -114,19 +144,19 @@ subroutine invariantMatrixDGEMM(iteration)
     !$OMP PRIVATE(operation_left,operation_right) &
     !$OMP PRIVATE(diff_var_left,diff_var_right,coef) &
     !$OMP PRIVATE(matrixkind,flag_coef,icoef)&
-    !$OMP PRIVATE(vectorL, vectorR, coefMatrix)&
-    !$OMP PRIVATE(startl,startr)
+    !$OMP PRIVATE(vectorL, vectorR, coefMatrix, tmp1, invariant_matrix_sub)&
+    !$OMP PRIVATE(startl,startr)&
+    !$OMP PRIVATE(rowA, columnA, rowB, columnB, rowC, columnC)
 
 
 
-    loop_left:do ileft=1, numberOfSubspace
-        if (keeped_basis_number(ileft) .eq. 0) cycle loop_left
+    loop_pair:do ipair=myloadmin, myloadmax
+        ileft=subspacePair(ipair,1)
+        iright=subspacePair(ipair,2)
+        if ((keeped_basis_number(ileft) .eq. 0) .or. (keeped_basis_number(iright) .eq. 0) ) cycle loop_pair
+
         subspace_left = subspaceInfo(ileft)
-
-        loop_right:do iright=1,numberOfSubspace
-            if (keeped_basis_number(iright) .eq. 0) cycle loop_right
-
-            subspace_right = subspaceInfo(iright)
+        subspace_right = subspaceInfo(iright)
 
             !calculate <ileft | f^dagger |iright> type  invariant matrix element
 
@@ -140,7 +170,7 @@ subroutine invariantMatrixDGEMM(iteration)
                 diffSSz = sum(subspace_left%basis(spinStart:spinEnd) &
                     - subspace_right%basis(spinStart:spinEnd))
                 if (abs(diffSSz) .ne. 1) then
-                    cycle loop_right
+                    cycle loop_pair
                 end if
 
             else
@@ -152,7 +182,7 @@ subroutine invariantMatrixDGEMM(iteration)
 
 
                 if(diffQ .ne. 1 .or. abs(diffSSz) .ne. 1) then
-                    cycle loop_right
+                    cycle loop_pair
                 end if
 
             end if
@@ -221,21 +251,21 @@ subroutine invariantMatrixDGEMM(iteration)
                 end do loop_sub_r
             end do
 
-            print*, ileft,":", iright
+           ! print*, ileft,":", iright
 
-            print*, "vectorL"
-            print*, vectorL
+           ! print*, "vectorL"
+           ! print*, vectorL
 
-            print*, "vectorR"
-            print*, vectorR
+           ! print*, "vectorR"
+           ! print*, vectorR
 
-            print*, "coefMatrix"
+           ! print*, "coefMatrix"
 
-            do ip=1, hami%numberOfConductionMatrix
-            print*,"matrix kind:", ip
-            print*, coefMatrix(:,:,ip)
+           !do ip=1, hami%numberOfConductionMatrix
+           !     print*,"matrix kind:", ip
+           !     print*, coefMatrix(:,:,ip)
             
-            end do
+           ! end do
 
 
 
@@ -264,7 +294,7 @@ subroutine invariantMatrixDGEMM(iteration)
                 columnC=rmax_right
 
                 call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
-                           coefMatrix(:,:,ip),rowB,beta,tmp1,rowC)
+                    coefMatrix(:,:,ip),rowB,beta,tmp1,rowC)
                 print*,"tmp1"
                 print*,tmp1
 
@@ -280,7 +310,7 @@ subroutine invariantMatrixDGEMM(iteration)
 
                 !tmp1*vectorR^T
                 call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
-                           vectorR,rowB,beta,invariant_matrix_sub,rowC)
+                    vectorR,rowB,beta,invariant_matrix_sub,rowC)
                 print*,"invariant"
                 print*, invariant_matrix_sub
 
@@ -303,8 +333,7 @@ subroutine invariantMatrixDGEMM(iteration)
             deallocate(vectorL, vectorR, coefMatrix, tmp1, invariant_matrix_sub)
 
 
-        end do loop_right
-    end do loop_left
+    end do loop_pair
      !$OMP END PARALLEL DO
 
     deallocate (keeped_basis_number)
