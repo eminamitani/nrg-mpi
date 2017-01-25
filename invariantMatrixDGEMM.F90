@@ -58,6 +58,7 @@ subroutine invariantMatrixDGEMM(iteration)
     character(50)::Numitr, matrixnum
 
     logical :: flag_parallel !flag for parallel or not
+    integer :: IC
 
     call startCount("invMat")
     call startCount("invMat:omp")
@@ -151,6 +152,9 @@ subroutine invariantMatrixDGEMM(iteration)
 
 
     loop_pair:do ipair=myloadmin, myloadmax
+    !$ IC=omp_get_thread_num()
+        !print*, "load::", ipair, "thread::", IC
+
         ileft=subspacePair(ipair,1)
         iright=subspacePair(ipair,2)
         if ((keeped_basis_number(ileft) .eq. 0) .or. (keeped_basis_number(iright) .eq. 0) ) cycle loop_pair
@@ -282,8 +286,8 @@ subroutine invariantMatrixDGEMM(iteration)
                 tmp1=0.0
                 invariant_matrix_sub=0.0
 
-                print*,"matrix kind:", ip
-                print*, coefMatrix(:,:,ip)
+                !print*,"matrix kind:", ip
+                !print*, coefMatrix(:,:,ip)
 
                 !vectorL * coefMatrix
                 rowA=keeped_basis_number(ileft)
@@ -295,8 +299,8 @@ subroutine invariantMatrixDGEMM(iteration)
 
                 call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
                     coefMatrix(:,:,ip),rowB,beta,tmp1,rowC)
-                print*,"tmp1"
-                print*,tmp1
+                !print*,"tmp1"
+                !print*,tmp1
 
                 !tmp1--> A
                 rowA=keeped_basis_number(ileft)
@@ -311,14 +315,14 @@ subroutine invariantMatrixDGEMM(iteration)
                 !tmp1*vectorR^T
                 call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
                     vectorR,rowB,beta,invariant_matrix_sub,rowC)
-                print*,"invariant"
-                print*, invariant_matrix_sub
+                !print*,"invariant"
+                !print*, invariant_matrix_sub
 
                 !copy to invariant Matrix
                 startl=sum(keeped_basis_number(1:ileft-1))+1
                 startr=sum(keeped_basis_number(1:iright-1))+1
 
-                print*,"startl, startr:", startl, " ", startr
+                !print*,"startl, startr:", startl, " ", startr
 
                 do isubl=1, keeped_basis_number(ileft)
                     do isubr=1, keeped_basis_number(iright)
@@ -339,23 +343,31 @@ subroutine invariantMatrixDGEMM(iteration)
     deallocate (keeped_basis_number)
 
     call stopCount
-    call startCount("invMat:Allgather")
+    call startCount("invMat:Allreduce")
 
-    !test no parallel
-    flag_parallel=.false.
-
+    !the matrix element is zero if the calculation of matrix element carried out
+    !and, the block of load balance in invariant matrix is not so simple
+    !here I use MPI_ALLREDUCE
     !MPI part is not implemented yet
+!    flag_parallel=.false.
     if (flag_parallel) then
-        do m=1, hami%numberOfConductionMatrix
-            call MPI_ALLGATHERV( &
-                invariant_matrix(1,myloadmin,m), &
-                allload(my_rank)*hami%numberOfBasis, &
+!       do m=1, hami%numberOfConductionMatrix
+!            call MPI_ALLGATHERV( &
+!                invariant_matrix(1,myloadmin,m), &
+!                allload(my_rank)*hami%numberOfBasis, &
+!                MPI_DOUBLE_PRECISION, &
+!                invariant_matrix(1,1,m), &
+!                allload(:)*hami%numberOfBasis, &
+!                (loadmin(:)-1)*hami%numberOfBasis, &
+!                MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr )
+!       end do
+            call MPI_ALLREDUCE(&
+                MPI_IN_PLACE, &
+                invariant_matrix(1,1,1), &
+                hami%numberOfBasis*hami%numberOfBasis*hami%numberOfConductionMatrix, &
                 MPI_DOUBLE_PRECISION, &
-                invariant_matrix(1,1,m), &
-                allload(:)*hami%numberOfBasis, &
-                (loadmin(:)-1)*hami%numberOfBasis, &
-                MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr )
-        end do
+                MPI_SUM, &
+                MPI_COMM_WORLD, ierr )
     end if
     call stopCount ! invMat:Allgather
 
