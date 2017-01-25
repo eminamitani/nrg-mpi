@@ -99,7 +99,7 @@ subroutine invariantMatrixDGEMM(iteration)
 
     end do
 
-    print*,keeped_basis_number
+    !print*,keeped_basis_number
 
     !prepare the subspace pair set
     if( allocated(subspacePair) ) deallocate(subspacePair)
@@ -345,9 +345,9 @@ subroutine invariantMatrixDGEMM(iteration)
     call stopCount
     call startCount("invMat:Allreduce")
 
-    !the matrix element is zero if the calculation of matrix element carried out
+    !the matrix element is zero if the calculation of matrix element was not carried out
     !and, the block of load balance in invariant matrix is not so simple
-    !here I use MPI_ALLREDUCE
+    !here I use MPI_ALLREDUCE to simplify the operation
     !MPI part is not implemented yet
 !    flag_parallel=.false.
     if (flag_parallel) then
