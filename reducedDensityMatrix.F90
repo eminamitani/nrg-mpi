@@ -37,6 +37,11 @@ subroutine reducedDensityMatrixCalculation
   double precision:: element
   integer :: ilderiv, irderiv
   integer :: IC
+
+  double precision, allocatable :: vectorL(:,:), vectorR(:,:), coefMatrix(:,:,:)
+  external :: dgemm
+  double precision, parameter :: alpha=1.0, beta=0.0
+  integer:: rowA, columnA, rowB, columnB, rowC, columnC
   !integer ::loadmax,loadmin
 
   ! print*, "numberOfVariation=", numberOfVariation

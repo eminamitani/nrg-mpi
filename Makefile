@@ -23,7 +23,7 @@ OBJECTS = \
 	count.o module.o main.o read_initial_basis.o loadbalance.o \
 	invariantMatrix.o nrgIteration.o prepareBasis.o \
 	diagonalization.o postprocess.o initializeReducedDensity.o \
-	reducedDensityMatrix.o invariantMatrixForSpectrum.o \
+	reducedDensityMatrix.o invariantMatrixForSpectrumDGEMM.o \
 	calculateSpectrum.o initialState.o invariantMatrixDGEMM.o
 
 MODULE = module.F90
