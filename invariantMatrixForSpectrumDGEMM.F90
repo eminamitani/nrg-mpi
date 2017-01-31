@@ -255,21 +255,21 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
             end do loop_sub_r
         end do
 
-            print*, ileft,":", iright
-
-            print*, "vectorL"
-            print*, vectorL
-
-            print*, "vectorR"
-            print*, vectorR
-
-            print*, "coefMatrix"
-
-           do imat=1, hami%numberOfMatrix
-                print*,"matrix kind:", imat
-                print*, coefMatrix(:,:,imat)
-
-           end do
+!            print*, ileft,":", iright
+!
+!            print*, "vectorL"
+!            print*, vectorL
+!
+!            print*, "vectorR"
+!            print*, vectorR
+!
+!            print*, "coefMatrix"
+!
+!           do imat=1, hami%numberOfMatrix
+!                print*,"matrix kind:", imat
+!                print*, coefMatrix(:,:,imat)
+!
+!           end do
 
         allocate (tmp1(keeped_basis_number(ileft),rmax_right ))
 
@@ -295,8 +295,8 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
 
             call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
                 coefMatrix(:,:,imatrix),rowB,beta,tmp1,rowC)
-            print*,"tmp1"
-            print*,tmp1
+            !print*,"tmp1"
+            !print*,tmp1
 
             !tmp1--> A
             rowA=keeped_basis_number(ileft)
@@ -311,8 +311,8 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
             !tmp1*vectorR^T
             call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
                 vectorR,rowB,beta,invariant_matrix_sub,rowC)
-            print*,"invariant"
-            print*, invariant_matrix_sub
+            !print*,"invariant"
+            !print*, invariant_matrix_sub
 
             !copy to invariant Matrix
             startl=sum(keeped_basis_number(1:ileft-1))+1
