@@ -1,4 +1,4 @@
-subroutine invariantMatrixForSpectrumDGEMM
+subroutine invariantMatrixForSpectrumDGEMM(iteration)
     use omp_lib
     use generall
     use parallel
@@ -15,7 +15,7 @@ subroutine invariantMatrixForSpectrumDGEMM
 
     implicit none
   include 'mpif.h'
-
+    integer, intent(in) ::iteration
     integer :: loadmin(0:numberOfProcess-1), myloadmin
     integer :: loadmax(0:numberOfProcess-1), myloadmax
     integer :: allload(0:numberOfProcess-1), myload
@@ -51,7 +51,8 @@ subroutine invariantMatrixForSpectrumDGEMM
 
     logical :: flag_parallel !flag for parallel or not
     integer :: ierr
-    integer :: p, m, i,j
+    integer :: p, m, i,j, matrixkind
+    character(50)::Numitr, matrixnum
 
     double precision, allocatable :: invariant_matrix_spectrum_new(:,:,:) !the renew value
 
@@ -213,11 +214,11 @@ subroutine invariantMatrixForSpectrumDGEMM
 
         !vector L transposed
         allocate (vectorL(keeped_basis_number(ileft), rmax_left))
-        vectorL=0.0
+        vectorL=0.0d0
 
 
         allocate (vectorR(rmax_right,keeped_basis_number(iright)))
-        vectorR=0.0
+        vectorR=0.0d0
 
         do isubl=1, keeped_basis_number(ileft)
             vectorL(isubl, 1:rmax_left)=eigenvector(eigenvec_min_left+(isubl-1)*rmax_left:eigenvec_min_left+isubl+rmax_left-1)
@@ -229,14 +230,17 @@ subroutine invariantMatrixForSpectrumDGEMM
 
 
         allocate (coefMatrix(rmax_left,rmax_right,hami%numberOfConductionMatrix))
+        coefMatrix=0.0d0
 
         do isubl=basis_min_left, basis_max_left
 
             operation_left=basis_input(isubl)%operation
+            reference_left=basis_input(isubl)%reference
 
             loop_sub_r: do isubr=basis_min_right, basis_max_right
 
                 operation_right=basis_input(isubr)%operation
+                reference_right=basis_input(isubr)%reference
 
                 if (operation_right .ne. operation_left) then
                     cycle loop_sub_r
@@ -245,11 +249,27 @@ subroutine invariantMatrixForSpectrumDGEMM
                 do imat=1, size(countMatrix)
                     imatrix = countMatrix(imat)
                     coefMatrix(isubl-basis_min_left+1,isubr-basis_min_right+1, imatrix) = coefficient_invariant_matrix_spectrum &
-                        (imatrix,operation_left)
+                        (imatrix,operation_left)*invariant_matrix_spectrum(reference_right,reference_left,imatrix)
                 end do
 
             end do loop_sub_r
         end do
+
+            print*, ileft,":", iright
+
+            print*, "vectorL"
+            print*, vectorL
+
+            print*, "vectorR"
+            print*, vectorR
+
+            print*, "coefMatrix"
+
+           do imat=1, hami%numberOfMatrix
+                print*,"matrix kind:", imat
+                print*, coefMatrix(:,:,imat)
+
+           end do
 
         allocate (tmp1(keeped_basis_number(ileft),rmax_right ))
 
@@ -275,8 +295,8 @@ subroutine invariantMatrixForSpectrumDGEMM
 
             call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
                 coefMatrix(:,:,imatrix),rowB,beta,tmp1,rowC)
-            !print*,"tmp1"
-            !print*,tmp1
+            print*,"tmp1"
+            print*,tmp1
 
             !tmp1--> A
             rowA=keeped_basis_number(ileft)
@@ -291,8 +311,8 @@ subroutine invariantMatrixForSpectrumDGEMM
             !tmp1*vectorR^T
             call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
                 vectorR,rowB,beta,invariant_matrix_sub,rowC)
-            !print*,"invariant"
-            !print*, invariant_matrix_sub
+            print*,"invariant"
+            print*, invariant_matrix_sub
 
             !copy to invariant Matrix
             startl=sum(keeped_basis_number(1:ileft-1))+1
@@ -350,4 +370,23 @@ subroutine invariantMatrixForSpectrumDGEMM
     deallocate(invariant_matrix_spectrum_new)
 
     call stopCount
+
+    !for debugging purpose only
+    if (my_rank .eq. 0 ) then
+        write(Numitr,*) iteration
+
+
+        do matrixkind=1, hami%numberOfConductionMatrix
+            write(matrixnum,*) matrixkind
+            open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix_spectrum"//TRIM(ADJUSTL(matrixnum))//".txt")
+
+            do ileft=1, hami%numberOfBasis
+                do iright=1, hami%numberOfBasis
+                    write(110, *) invariant_matrix_spectrum(iright,ileft,matrixkind)
+                end do
+            end do
+            close(110)
+        end do
+
+    end if
 end subroutine invariantMatrixForSpectrumDGEMM

@@ -177,7 +177,7 @@ subroutine postprocess( iteration )
      call invariantMatrixDGEMM(iteration)
 
 
-     if (hami%flag_spectrum) call invariantMatrixForSpectrumDGEMM
+     if (hami%flag_spectrum) call invariantMatrixForSpectrumDGEMM(iteration)
 
      if (my_rank .eq. 0) then
         print*,"iteration=", iteration, "size of invariant Matrix Spectrum=",size(invariant_matrix_spectrum)
