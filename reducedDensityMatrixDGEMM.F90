@@ -137,7 +137,7 @@ subroutine reducedDensityMatrixCalculation
                 presentVariation(iv)=fullSubspaceInfo(iS)%basis(iv)
             end do
 
-            print*, "variation", presentVariation
+            !print*, "variation", presentVariation
 
             presentNumberOfBasis=fullSubspaceInfo(iS)%dimension_after
             presentOutput=fullSubspaceInfo(iS)%start_output
