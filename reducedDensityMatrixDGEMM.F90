@@ -137,6 +137,8 @@ subroutine reducedDensityMatrixCalculation
                 presentVariation(iv)=fullSubspaceInfo(iS)%basis(iv)
             end do
 
+            print*, "variation", presentVariation
+
             presentNumberOfBasis=fullSubspaceInfo(iS)%dimension_after
             presentOutput=fullSubspaceInfo(iS)%start_output
 
@@ -157,6 +159,8 @@ subroutine reducedDensityMatrixCalculation
 
             !find related subspace in the pervious iteration and construct vectorL
             !loop_operation: do ioperation=1, numberOfOperation
+            flag_find_space=.false.
+
             do ioperation =1, hami%numberOfOperation
 
                 do iv=1, hami%numberOfVariation
@@ -165,7 +169,9 @@ subroutine reducedDensityMatrixCalculation
                     previousVariation(iv)=presentVariation(iv)-operation(ioperation , iv)
                 end do
 
-                flag_find_space=.false.
+                !print*, "previous variation", previousVariation
+
+
 
                 !find corresponding subspace in previousIteration
                 if(previousIteration .eq. hami%numberOfIteration) then
@@ -191,10 +197,13 @@ subroutine reducedDensityMatrixCalculation
                         previousPositionOutput(ioperation)=fullSubspaceInfo(iSprev)%start_output
                         previousPositionReducedDensity(ioperation)=fullSubspaceInfo(iSprev)%start_matrix
                         derivedOperation(ioperation)=ioperation
-                        exit
+                        !print*, "operation:", ioperation
+                        !print*, "previousPositionEigenVector=",previousPositionEigenvector(ioperation)
                     end if
                 end do !do iSprev, to find the corresponding subspace
             end do ! operation
+
+            !print*,"subspace find result:", flag_find_space
 
             !count the number of total basis derived from this subspace in n+1 shell
             totalBasisNumPrevious=sum(previousKeepBasis)
@@ -225,6 +234,7 @@ subroutine reducedDensityMatrixCalculation
                     end do
 
                     !getting tensor connected between n and n+1 shell
+
                     do il=1, presentNumberOfBasis
                         presentIndex=fullBasisOutput(presentOutput+il-1)%reference
                         do ilprev=previousPositionInput(ioperation),previousPositionInput(ioperation)+previousTotalBasis(ioperation)-1
@@ -232,6 +242,7 @@ subroutine reducedDensityMatrixCalculation
                                 .and. (fullBasisInput(ilprev)%operation .eq. ioperation) ) then
                                 !the position of derived state from il-th basis
                                 ilderiv=ilprev
+                                !print*, "position at In", ilderiv
                                 exit
                             end if
                         end do
@@ -246,15 +257,16 @@ subroutine reducedDensityMatrixCalculation
 
                 end if
                 startl=startl+previousKeepBasis(ioperation)
-            end do !operation
+                end do
+
 
             vectorR=TRANSPOSE(vectorL)
 
-            print*,"VECTORL"
-            print*, vectorL
+            !print*,"VECTORL"
+            !print*, vectorL
 
-            print*, "reducedDensityPrevious"
-            print*, reducedDensityPrevious
+            !print*, "reducedDensityPrevious"
+            !print*, reducedDensityPrevious
 
             allocate(tmp1(presentNumberOfBasis, totalBasisNumPrevious))
 
@@ -267,8 +279,8 @@ subroutine reducedDensityMatrixCalculation
 
             call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
                 reducedDensityPrevious,rowB,beta,tmp1,rowC)
-            print*,"tmp1"
-            print*,tmp1
+            !print*,"tmp1"
+            !print*,tmp1
 
             !tmp1--> A
             rowA=presentNumberOfBasis
@@ -304,6 +316,8 @@ subroutine reducedDensityMatrixCalculation
             deallocate(vectorL, vectorR, tmp1, reducedDensityPrevious)
             deallocate(reducedDensitySubspace)
             deallocate(presentVariation)
+
+
         end do
         !$OMP END PARALLEL DO
 
