@@ -201,12 +201,14 @@ subroutine reducedDensityMatrixCalculation
 
             !reduced density Matrix in n+1th shell
             allocate (reducedDensityPrevious(totalBasisNumPrevious, totalBasisNumPrevious))
+            reducedDensityPrevious=0.0d0
 
             !tensor connecting n & n+1th shell
             allocate (vectorL(presentNumberOfBasis, totalBasisNumPrevious))
-
+            vectorL=0.0d0
             !transposed version of vectorL
             allocate (vectorR(totalBasisNumPrevious, presentNumberOfBasis))
+            vectorR=0.0d0
 
             startl=1
             endl=1
@@ -247,6 +249,13 @@ subroutine reducedDensityMatrixCalculation
             end do !operation
 
             vectorR=TRANSPOSE(vectorL)
+
+            print*,"VECTORL"
+            print*, vectorL
+
+            print*, "reducedDensityPrevious"
+            print*, reducedDensityPrevious
+
             allocate(tmp1(presentNumberOfBasis, totalBasisNumPrevious))
 
             rowA=presentNumberOfBasis
@@ -258,8 +267,8 @@ subroutine reducedDensityMatrixCalculation
 
             call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
                 reducedDensityPrevious,rowB,beta,tmp1,rowC)
-            !print*,"tmp1"
-            !print*,tmp1
+            print*,"tmp1"
+            print*,tmp1
 
             !tmp1--> A
             rowA=presentNumberOfBasis
@@ -292,7 +301,7 @@ subroutine reducedDensityMatrixCalculation
                 end do
             end do
 
-            deallocate(vectorL, vectorR, tmp1)
+            deallocate(vectorL, vectorR, tmp1, reducedDensityPrevious)
             deallocate(reducedDensitySubspace)
             deallocate(presentVariation)
         end do
