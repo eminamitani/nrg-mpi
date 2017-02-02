@@ -375,8 +375,9 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
 
      startEigenvecl=subspaceInfo(isubl)%count_eigenvector
      startBasis_inputl=subspaceInfo(isubl)%start_input
-
-     eigenvec_min_l=subspaceInfo(isubl)%count_eigenvector
+     
+     !shift the starting point of eigenvector block. (l is truncated basis and not the ground state of the corresponding subspace) 
+     eigenvec_min_l=subspaceInfo(isubl)%count_eigenvector+rmax_l*(lVariation-1)
      basis_min_l=subspaceInfo(isubl)%start_input
      basis_max_l=basis_min_l+rmax_l-1
 
