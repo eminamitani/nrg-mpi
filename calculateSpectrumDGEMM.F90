@@ -251,11 +251,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
   integer :: lVariation
   integer :: maxVariationInl, startEigenvecl, startBasis_inputl
 
-  integer :: dim_left, dim_right
-  integer :: rmax_left, rmax_right
-  integer :: basis_min_left, basis_min_right
-  integer :: basis_max_left, basis_max_right
-  integer :: eigenvec_min_left, eigenvec_min_right
+  integer :: dim_l, dim_k
+  integer :: rmax_l, rmax_k
+  integer :: basis_min_l, basis_min_k
+  integer :: basis_max_l, basis_max_k
+  integer :: eigenvec_min_l, eigenvec_min_k
   integer :: matrixType
 
   integer, allocatable :: variationForl(:)
@@ -271,6 +271,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
   double precision, allocatable :: tmpBinnedSpikePositive_thread(:,:)
   double precision, allocatable :: tmpBinnedSpikeNegative_thread(:,:)
   double precision, allocatable :: total_sum_negative_thread(:), total_sum_positive_thread(:)
+
 
   integer :: work, work2, loadmin, loadmax
 
@@ -354,11 +355,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
   !$OMP PRIVATE(k1Variation, k2Variation, kVariation, isubl, lVariation, maxVariationInl, startEigenvecl, startBasis_inputl)&
   !$OMP PRIVATE(variationForl, variationFork, El, Ek1, Ediff, spike_k1, spike_k2)&
   !$OMP PRIVATE(cfsSpike,spike_subk,flag_l,flag_k, flag_full_k)&
-  !$OMP PRIVATE( dim_left, dim_right)&
-  !$OMP PRIVATE( rmax_left, rmax_right)&
-  !$OMP PRIVATE( basis_min_left, basis_min_right)&
-  !$OMP PRIVATE( basis_max_left, basis_max_right)&
-  !$OMP PRIVATE( eigenvec_min_left, eigenvec_min_right)&
+  !$OMP PRIVATE( dim_l, dim_k)&
+  !$OMP PRIVATE( rmax_l, rmax_k)&
+  !$OMP PRIVATE( basis_min_l, basis_min_k)&
+  !$OMP PRIVATE( basis_max_l, basis_max_k)&
+  !$OMP PRIVATE( eigenvec_min_l, eigenvec_min_k)&
   !$OMP PRIVATE( matrixType)
   do il=loadmin, loadmax
      lVariation=basis_output(il)%reference
@@ -369,15 +370,17 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
 
      maxVariationInl=subspaceInfo(isubl)%dimension
 
-     dim_left=1
-     rmax_left=subspaceInfo(isubl)%dimension
+     dim_l=1
+     rmax_l=subspaceInfo(isubl)%dimension
 
      startEigenvecl=subspaceInfo(isubl)%count_eigenvector
      startBasis_inputl=subspaceInfo(isubl)%start_input
 
-     eigenvec_min_left=subspaceInfo(isubl)%count_eigenvector
-     basis_min_left=subspaceInfo(isubl)%start_input
-     basis_max_left=basis_min_left+rmax_left-1
+     eigenvec_min_l=subspaceInfo(isubl)%count_eigenvector
+     basis_min_l=subspaceInfo(isubl)%start_input
+     basis_max_l=basis_min_l+rmax_l-1
+
+     print*, "iteration=", iteration, ":Gii part"
 
      !G_ii part
      !<k1|d^\dagger|l>*<k2|d^\dagger|l>*rhored(k2,k1)*delta(w-(Ek1-El))
@@ -406,11 +409,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
         startEigenveck=subspaceInfo(isubk)%count_eigenvector
         startBasis_inputk=subspaceInfo(isubk)%start_input
 
-        dim_right=fullSubspaceInfo(ifullsubk)%dimension_after
-        rmax_right=subspaceInfo(isubk)%dimension
-        eigenvec_min_right=subspaceInfo(isubk)%count_eigenvector
-        basis_min_right=subspaceInfo(isubk)%start_input
-        basis_max_right=basis_min_right+rmax_right-1
+        dim_k=fullSubspaceInfo(ifullsubk)%dimension_after
+        rmax_k=subspaceInfo(isubk)%dimension
+        eigenvec_min_k=subspaceInfo(isubk)%count_eigenvector
+        basis_min_k=subspaceInfo(isubk)%start_input
+        basis_max_k=basis_min_k+rmax_k-1
 
         if(maxVariationInk .ne. variationInk) then
            if(my_rank .eq. 0) then
@@ -419,15 +422,17 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
            stop
         end if
 
-        allocate( spike_subk(1, keptVariationInk) )
-
+        allocate( spike_subk(dim_k,1) )
+        spike_subk=0.0d0
         !calculate the spike_subk using dgemm
 
         call spectrumElementDGEMM &
-       ( dim_left,rmax_left, eigenvec_min_left, basis_min_left, basis_max_left, &
-         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_right, &
+       ( dim_k,rmax_k, eigenvec_min_k, basis_min_k, basis_max_k, &
+         dim_l,rmax_l, eigenvec_min_l, basis_min_l, basis_max_l, &
          ip, spike_subk)
 
+         print*, "spike_subk"
+         print*, spike_subk
 
 
         do ik1=startBasis_outputk, startBasis_outputk+keptVariationInk-1
@@ -436,11 +441,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
            cfsSpike=0.0d0
            cfsSpike(1,1)=(Ek1-El)*scale(iteration)
 
-           spike_k1=spike_subk(1,ik1-startBasis_outputk+1)
+           spike_k1=spike_subk(ik1-startBasis_outputk+1,1)
 
            do ik2=startBasis_outputk,startBasis_outputk+keptVariationInk-1
               k2Variation=basis_output(ik2)%reference
-              spike_k2=spike_subk(1,ik2-startBasis_outputk+1)
+              spike_k2=spike_subk(ik2-startBasis_outputk+1,1)
 
               cfsSpike(1,2) = cfsSpike(1,2) + spike_k1*spike_k2 &
                    * reducedDensityMatrix &
@@ -453,6 +458,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
            call binningSpike(tmpBinnedSpikeNegative_thread,cfsSpike,ip)
         end do
         deallocate(spike_subk)
+
      end do loop_matrix
 
      !G_iii part
@@ -484,11 +490,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
         startEigenveck=subspaceInfo(isubk)%count_eigenvector
         startBasis_inputk=subspaceInfo(isubk)%start_input
 
-        dim_right=fullSubspaceInfo(ifullsubk)%dimension_after
-        rmax_right=subspaceInfo(isubk)%dimension
-        eigenvec_min_right=subspaceInfo(isubk)%count_eigenvector
-        basis_min_right=subspaceInfo(isubk)%start_input
-        basis_max_right=basis_min_right+rmax_right-1
+        dim_k=fullSubspaceInfo(ifullsubk)%dimension_after
+        rmax_k=subspaceInfo(isubk)%dimension
+        eigenvec_min_k=subspaceInfo(isubk)%count_eigenvector
+        basis_min_k=subspaceInfo(isubk)%start_input
+        basis_max_k=basis_min_k+rmax_k-1
 
         if(maxVariationInk .ne. variationInk) then
            if(my_rank .eq. 0) then
@@ -497,11 +503,11 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
            stop
         end if
 
-        allocate( spike_subk(1,keptVariationInk) )
-
+        allocate( spike_subk(1,dim_k) )
+        spike_subk=0.0d0
         call spectrumElementDGEMM &
-       ( dim_left,rmax_left, eigenvec_min_left, basis_min_left, basis_max_left, &
-         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_right, &
+       ( dim_l,rmax_l, eigenvec_min_l, basis_min_l, basis_max_l, &
+         dim_k,rmax_k, eigenvec_min_k, basis_min_k, basis_max_k, &
          ip, spike_subk)
 
 
