@@ -1010,6 +1010,120 @@ contains
     call stopCount
   end subroutine setSpectrumInfo
 
+! CFS calculation
+  subroutine spectrumElementDGEMM &
+       ( dim_left,rmax_left, eigenvec_min_left, basis_min_left, basis_max_left, &
+         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_right, &
+         matrixType, spectrumArray )
+    use hamiltonian, only: basis_input ! in
+    use hamiltonian, only: eigenvector ! in
+    use hamiltonian, only: invariant_matrix_spectrum ! in
+    use hamiltonian, only: coefficient_invariant_matrix_spectrum ! in
+
+    integer, intent(in) :: dim_left, dim_right
+    integer, intent(in) :: rmax_left, rmax_right
+    integer, intent(in) :: basis_min_left, basis_min_right
+    integer, intent(in) :: basis_max_left, basis_max_right
+    integer, intent(in) :: eigenvec_min_left, eigenvec_min_right
+    integer, intent(in) :: matrixType
+    double precision, intent(out) :: spectrumArray(dim_left,dim_right)
+
+    integer :: endLeft, endRight
+    integer :: operation_left, operation_right
+    integer :: reference_left, reference_right
+    integer :: startLeft2, startRight2
+
+    integer :: il, ir, isubl, isubr
+    double precision, allocatable :: vectorL(:,:)
+    double precision, allocatable :: vectorR(:,:)
+    double precision, allocatable :: coefMatrix(:,:)
+    double precision, allocatable :: tmp1(:,:)
+    double precision :: spike_temp, coef
+    external :: dgemm
+    double precision, parameter :: alpha=1.0, beta=0.0
+    integer:: rowA, columnA, rowB, columnB, rowC, columnC
+
+    call startCount("spectElem")
+
+
+    allocate( vectorL (dim_left, rmax_left ) )
+    allocate( vectorR (rmax_right, dim_right) )
+
+    vectorL=0.0d0
+    vectorR=0.0d0
+    spectrumArray=0.0d0
+
+    allocate (tmp1(dim_left,rmax_right ))
+    tmp1=0.0d0
+
+    allocate (coefMatrix(rmax_left,rmax_right))
+    coefMatrix=0.0d0
+
+    do isubl=1, dim_left
+       vectorL(isubl, 1:rmax_left)=eigenvector(eigenvec_min_left+(isubl-1)*rmax_left:eigenvec_min_left+isubl+rmax_left-1)
+    end do
+
+    do isubr=1, dim_right
+       vectorR(1:rmax_right, isubr)=eigenvector(eigenvec_min_right+(isubr-1)*rmax_right:eigenvec_min_right+isubr+rmax_right-1)
+    end do
+
+         do isubl=basis_min_left, basis_max_left
+
+            operation_left=basis_input(isubl)%operation
+            reference_left=basis_input(isubl)%reference
+
+            loop_sub_r: do isubr=basis_min_right, basis_max_right
+
+                operation_right=basis_input(isubr)%operation
+                reference_right=basis_input(isubr)%reference
+
+                if (operation_right .ne. operation_left) then
+                    cycle loop_sub_r
+                end if
+
+
+
+                    coefMatrix(isubl-basis_min_left+1,isubr-basis_min_right+1) = coefficient_invariant_matrix_spectrum &
+                        (matrixType,operation_left)*invariant_matrix_spectrum(reference_right,reference_left,matrixType)
+
+
+            end do loop_sub_r
+        end do
+
+            rowA=dim_left
+            columnA=rmax_left
+            rowB=rmax_left
+            columnB=rmax_right
+            rowC=dim_left
+            columnC=rmax_right
+
+            call dgemm('N','N',rowA,columnB,columnA,alpha,vectorL,rowA,&
+                coefMatrix,rowB,beta,tmp1,rowC)
+
+            rowA=dim_left
+            columnA=rmax_right
+            !vectorR-->B
+            rowB=rmax_right
+            columnB=dim_right
+            !invariant -->C
+            rowC=dim_left
+            columnC=dim_right
+
+            !tmp1*vectorR^T
+            call dgemm('N','N',rowA, columnB,columnA,alpha,tmp1,rowA,&
+                vectorR,rowB,beta,spectrumArray,rowC)
+
+    deallocate( vectorL  )
+    deallocate( vectorR )
+    deallocate (tmp1)
+    deallocate (coefMatrix)
+
+    call stopCount
+
+
+
+  end subroutine spectrumElementDGEMM
+
   double precision function spectrumElement &
        ( startLeft, startRight, &
        maxVariationLeft, maxVariationRight, &

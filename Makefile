@@ -24,7 +24,7 @@ OBJECTS = \
 	invariantMatrix.o nrgIteration.o prepareBasis.o \
 	diagonalization.o postprocess.o initializeReducedDensity.o \
 	reducedDensityMatrixDGEMM.o invariantMatrixForSpectrumDGEMM.o \
-	calculateSpectrum.o initialState.o invariantMatrixDGEMM.o
+	calculateSpectrumDGEMM.o initialState.o invariantMatrixDGEMM.o
 
 MODULE = module.F90
 
