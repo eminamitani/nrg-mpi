@@ -10,7 +10,7 @@ subroutine spikeZeroTemperature( iteration )
   use spectrum, only: negativeSpectrumOperation ! in
   use spectrum, only: binnedSpikePositive ! inout
   use spectrum, only: binnedSpikeNegative ! inout
-  use spectrum, only: spectrumElement ! function
+  use spectrum, only: spectrumElementDGEMM ! function
   use spectrum, only: findSubspace ! function
   use spectrum, only: binningSpike ! function
   implicit none
@@ -43,6 +43,14 @@ subroutine spikeZeroTemperature( iteration )
   logical:: flag_gs, flag_exc
   integer :: ionum
 
+  integer :: dim_GS, dim_EX
+  integer :: rmax_GS, rmax_EX
+  integer :: basis_min_GS, basis_min_EX
+  integer :: basis_max_GS, basis_max_EX
+  integer :: eigenvec_min_GS, eigenvec_min_EX
+  integer :: matrixType
+  double precision, allocatable :: spike_subk(:,:)
+
   call startCount("spikeZeroTemp")
 
   !find ground state and contain the index of ground state
@@ -70,6 +78,18 @@ subroutine spikeZeroTemperature( iteration )
   allocate( groundStateVariation(hami%numberOfVariation) )
   allocate( excitedStateVariation(hami%numberOfVariation) )
 
+     do ip=1, hami%numberOfMatrix
+        ionum=100+ip
+        write(spikeFile,'("step_",i3.2,"_itr_",i3.2,".positive_type",i3.3)') 2, iteration, ip
+        open(ionum, file=trim(spikeFile))
+    end do
+
+    do ip=1, hami%numberOfMatrix
+        ionum=200+ip
+        write(spikeFile,'("step_",i3.2,"_itr_",i3.2,".negative_type",i3.3)') 2, iteration, ip
+        open(ionum, file=trim(spikeFile))
+    end do
+
   do i=1, countGroundState
      groundStateVariation(:) = basis_output(groundStatePosition(i))%basis(:)
      !     print*, "ground state=", groundStateVariation
@@ -85,6 +105,13 @@ subroutine spikeZeroTemperature( iteration )
      startEigenvecGS=subspaceInfo(isubGround)%count_eigenvector
      startBasisGS=subspaceInfo(isubGround)%start_input
 
+     dim_GS=1
+     rmax_GS=subspaceInfo(isubGround)%dimension
+     eigenvec_min_GS=subspaceInfo(isubGround)%count_eigenvector
+     basis_min_GS=subspaceInfo(isubGround)%start_input
+     basis_max_GS=basis_min_GS+rmax_GS-1
+
+
      !positive region
      loop_matrix: do ip=1, hami%numberOfMatrix
         excitedStateVariation(:) &
@@ -99,23 +126,44 @@ subroutine spikeZeroTemperature( iteration )
         maxVariationEXS=subspaceInfo(isubExcited)%dimension
         startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
         startBasisEXS=subspaceInfo(isubExcited)%start_input
+
+        dim_EX=subspaceInfo(isubExcited)%dimension
+        rmax_EX=subspaceInfo(isubExcited)%dimension
+        eigenvec_min_EX=subspaceInfo(isubExcited)%count_eigenvector
+        basis_min_EX=subspaceInfo(isubExcited)%start_input
+        basis_max_EX=basis_min_EX+rmax_EX-1
+
+
         if(my_rank .eq. 0) then
            print*, "startEigenvecEXS, startEigenvecGS=", startEigenvecEXS, startBasisGS
         end if
 
+        allocate (spike_subk(dim_EX, 1))
+        spike_subk=0.0d0
+
+        call spectrumElementDGEMM &
+       ( dim_EX,rmax_EX, eigenvec_min_EX, basis_min_EX, basis_max_EX, &
+         dim_GS,rmax_GS, eigenvec_min_GS, basis_min_GS, basis_max_GS, &
+         ip, spike_subk)
+
         do iexs=startBasisEXS, startBasisEXS+maxVariationEXS-1
-           exsVariation=basis_output(iexs)%reference
+
            eigenEXS=eigenvalue(iexs)
 
-           tmp_spike_value = spectrumElement(startBasisEXS, startBasisGS, &
-                maxVariationEXS, maxVariationGS, exsVariation, gsVariation, &
-                startEigenvecEXS, startEigenvecGS, ip )
+           tmp_spike_value = spike_subk(iexs-startBasisEXS+1,1)
            !           print*, "tmp_spike_value=", tmp_spike_value
            tmp_spike(1,1)=eigenEXS*scale(iteration)
            tmp_spike(1,2)=tmp_spike_value*tmp_spike_value/pf
 
+                ionum=100+ip
+                if (tmp_spike(1,1) >1.0D-16) then
+                    write(ionum,*) tmp_spike(1,1:2)
+                end if
+
            call binningSpike(binnedSpikePositive,tmp_spike,ip)
         end do
+
+        deallocate (spike_subk)
      end do loop_matrix
 
      !negative region
@@ -132,18 +180,35 @@ subroutine spikeZeroTemperature( iteration )
         startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
         startBasisEXS=subspaceInfo(isubExcited)%start_input
 
+        dim_EX=subspaceInfo(isubExcited)%dimension
+        rmax_EX=subspaceInfo(isubExcited)%dimension
+        eigenvec_min_EX=subspaceInfo(isubExcited)%count_eigenvector
+        basis_min_EX=subspaceInfo(isubExcited)%start_input
+        basis_max_EX=basis_min_EX+rmax_EX-1
+
+        allocate (spike_subk(1, dim_EX))
+        spike_subk=0.0d0
+
+        call spectrumElementDGEMM &
+       ( dim_GS,rmax_GS, eigenvec_min_GS, basis_min_GS, basis_max_GS, &
+         dim_EX,rmax_EX, eigenvec_min_EX, basis_min_EX, basis_max_EX, &
+         ip, spike_subk)
+
         do iexs=startBasisEXS, startBasisEXS+maxVariationEXS-1
-           exsVariation=basis_output(iexs)%reference
            eigenEXS=eigenvalue(iexs)
 
-           tmp_spike_value = spectrumElement( startBasisGS, startBasisEXS, &
-                maxVariationGS, maxVariationEXS, gsVariation, exsVariation, &
-                startEigenvecGS, startEigenvecEXS, ip )
+           tmp_spike_value = spike_subk(1, iexs-startBasisEXS+1)
            tmp_spike(1,1)=-eigenEXS*scale(iteration)
            tmp_spike(1,2)=tmp_spike_value*tmp_spike_value/pf
 
+                ionum=200+ip
+                if (abs(tmp_spike(1,1)) >1.0D-16) then
+                    write(ionum,*) tmp_spike(1,1:2)
+                end if
+
            call binningSpike(binnedSpikeNegative,tmp_spike,ip)
         end do
+        deallocate (spike_subk)
      end do loop_matrix2
   end do
 
@@ -215,12 +280,6 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
 
   integer :: ierr
 
-  double precision, allocatable :: vectorL(:,:), vectorR(:,:), invariantMatrixSpectrum(:,:)
-  !intermediate matrix for dgemm
-  double precision, allocatable :: tmp1(:,:)
-  external :: dgemm
-  double precision, parameter :: alpha=1.0, beta=0.0
-  integer:: rowA, columnA, rowB, columnB, rowC, columnC
 
   call startCount("spikeCFS")
   call startCount("spikeCFS:alloc")
@@ -351,7 +410,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
         rmax_right=subspaceInfo(isubk)%dimension
         eigenvec_min_right=subspaceInfo(isubk)%count_eigenvector
         basis_min_right=subspaceInfo(isubk)%start_input
-        basis_min_right=basis_min_right+rmax_right-1
+        basis_max_right=basis_min_right+rmax_right-1
 
         if(maxVariationInk .ne. variationInk) then
            if(my_rank .eq. 0) then
@@ -366,7 +425,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
 
         call spectrumElementDGEMM &
        ( dim_left,rmax_left, eigenvec_min_left, basis_min_left, basis_max_left, &
-         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_left, &
+         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_right, &
          ip, spike_subk)
 
 
@@ -429,7 +488,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
         rmax_right=subspaceInfo(isubk)%dimension
         eigenvec_min_right=subspaceInfo(isubk)%count_eigenvector
         basis_min_right=subspaceInfo(isubk)%start_input
-        basis_min_right=basis_min_right+rmax_right-1
+        basis_max_right=basis_min_right+rmax_right-1
 
         if(maxVariationInk .ne. variationInk) then
            if(my_rank .eq. 0) then
@@ -442,7 +501,7 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
 
         call spectrumElementDGEMM &
        ( dim_left,rmax_left, eigenvec_min_left, basis_min_left, basis_max_left, &
-         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_left, &
+         dim_right,rmax_right, eigenvec_min_right, basis_min_right, basis_max_right, &
          ip, spike_subk)
 
 
