@@ -15,6 +15,7 @@ subroutine postprocess( iteration )
   use hamiltonian, only: numberOfSubspace ! in
   use hamiltonian, only: allocateType, deallocateType ! routine
   use hamiltonian, only: reallocateType, copyType ! routine
+  use hamiltonian, only: lowOfInput
 
   use system, only: param ! in
   use system, only: mapFullSubspaceInfo ! out
@@ -165,6 +166,22 @@ subroutine postprocess( iteration )
      end do
   end if
   deallocate(eigenindex)
+
+
+  !debug
+!  if (my_rank .eq. 0) then
+!        !for comparing with original code
+!        write(Numitr,*) iteration
+!        open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_basis_output.txt")
+!
+!            do i=1,numberOfBasis_full
+!                write(110,*) basis_output(i)%basis(:), basis_output(i)%reference
+!            end do
+!
+!        close(110)
+!
+!
+!    end if
 
   call stopCount
   call startCount("postprocess:invariant")

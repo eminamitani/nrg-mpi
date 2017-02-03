@@ -372,21 +372,21 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
     call stopCount
 
     !for debugging purpose only
-    if (my_rank .eq. 0 ) then
-        write(Numitr,*) iteration
-
-
-        do matrixkind=1, hami%numberOfConductionMatrix
-            write(matrixnum,*) matrixkind
-            open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix_spectrum"//TRIM(ADJUSTL(matrixnum))//".txt")
-
-            do ileft=1, hami%numberOfBasis
-                do iright=1, hami%numberOfBasis
-                    write(110, *) invariant_matrix_spectrum(iright,ileft,matrixkind)
-                end do
-            end do
-            close(110)
-        end do
-
-    end if
+!    if (my_rank .eq. 0 ) then
+!        write(Numitr,*) iteration
+!
+!
+!        do matrixkind=1, hami%numberOfConductionMatrix
+!            write(matrixnum,*) matrixkind
+!            open(110,file="itr_"//TRIM(ADJUSTL(Numitr))//"_invariant_matrix_spectrum"//TRIM(ADJUSTL(matrixnum))//".txt")
+!
+!            do ileft=1, hami%numberOfBasis
+!                do iright=1, hami%numberOfBasis
+!                    write(110, *) invariant_matrix_spectrum(iright,ileft,matrixkind)
+!                end do
+!            end do
+!            close(110)
+!        end do
+!
+!    end if
 end subroutine invariantMatrixForSpectrumDGEMM

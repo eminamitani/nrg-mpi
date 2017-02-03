@@ -431,9 +431,9 @@ subroutine spikeCFS(iteration,numberOfBasisFull)
        ( dim_k,rmax_k, eigenvec_min_k, basis_min_k, basis_max_k, &
          dim_l,rmax_l, eigenvec_min_l, basis_min_l, basis_max_l, &
          ip, spike_subk)
-
-         print*, "spike_subk"
-         print*, spike_subk
+         !print*, "subspace index for k:", isubk
+         !print*, "spike_subk"
+         !print*, spike_subk
 
 
         do ik1=startBasis_outputk, startBasis_outputk+keptVariationInk-1
