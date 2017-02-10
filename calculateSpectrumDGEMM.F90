@@ -26,10 +26,8 @@ subroutine spikeZeroTemperature( iteration )
   integer ::gsVariation, exsVariation
   !the index of subspace for excited state and ground state
   integer :: isubExcited, isubGround
-  !GS: groundState, EXS: excited state
-  !starting position of eigenvector, basis_input, number of degeneracy of subspace
-  integer :: startEigenvecGS, startBasisGS, maxVariationGS
-  integer ::startEigenvecEXS, startBasisEXS, maxVariationEXS
+
+
 
   double precision:: tmp_spike_value
   !eigenvalue of excited state
@@ -42,7 +40,8 @@ subroutine spikeZeroTemperature( iteration )
 
   logical:: flag_gs, flag_exc
   integer :: ionum
-
+  !GS: groundState, EXS: excited state
+  !starting position of eigenvector, basis_input, number of degeneracy of subspace
   integer :: dim_GS, dim_EX
   integer :: rmax_GS, rmax_EX
   integer :: basis_min_GS, basis_min_EX
@@ -101,9 +100,9 @@ subroutine spikeZeroTemperature( iteration )
         if (.not.flag_gs) print*, "error, ground state does not found"
      end if
 
-     maxVariationGS=subspaceInfo(isubGround)%dimension
-     startEigenvecGS=subspaceInfo(isubGround)%count_eigenvector
-     startBasisGS=subspaceInfo(isubGround)%start_input
+     !maxVariationGS=subspaceInfo(isubGround)%dimension
+     !startEigenvecGS=subspaceInfo(isubGround)%count_eigenvector
+     !startBasisGS=subspaceInfo(isubGround)%start_input
 
      dim_GS=1
      rmax_GS=subspaceInfo(isubGround)%dimension
@@ -123,9 +122,9 @@ subroutine spikeZeroTemperature( iteration )
            cycle loop_matrix
         end if
         !          print*, "excited state index is:" ,isubExcited
-        maxVariationEXS=subspaceInfo(isubExcited)%dimension
-        startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
-        startBasisEXS=subspaceInfo(isubExcited)%start_input
+        !maxVariationEXS=subspaceInfo(isubExcited)%dimension
+        !startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
+        !startBasisEXS=subspaceInfo(isubExcited)%start_input
 
         dim_EX=subspaceInfo(isubExcited)%dimension
         rmax_EX=subspaceInfo(isubExcited)%dimension
@@ -135,7 +134,7 @@ subroutine spikeZeroTemperature( iteration )
 
 
         if(my_rank .eq. 0) then
-           print*, "startEigenvecEXS, startEigenvecGS=", startEigenvecEXS, startBasisGS
+           print*, "eigenvector starting position::excited state, ground state=", eigenvec_min_EX, eigenvec_min_GS
         end if
 
         allocate (spike_subk(dim_EX, 1))
@@ -146,11 +145,11 @@ subroutine spikeZeroTemperature( iteration )
          dim_GS,rmax_GS, eigenvec_min_GS, basis_min_GS, basis_max_GS, &
          ip, spike_subk)
 
-        do iexs=startBasisEXS, startBasisEXS+maxVariationEXS-1
+        do iexs=basis_min_EX, basis_min_EX+rmax_EX-1
 
            eigenEXS=eigenvalue(iexs)
 
-           tmp_spike_value = spike_subk(iexs-startBasisEXS+1,1)
+           tmp_spike_value = spike_subk(iexs-basis_min_EX+1,1)
            !           print*, "tmp_spike_value=", tmp_spike_value
            tmp_spike(1,1)=eigenEXS*scale(iteration)
            tmp_spike(1,2)=tmp_spike_value*tmp_spike_value/pf
@@ -176,9 +175,9 @@ subroutine spikeZeroTemperature( iteration )
            cycle loop_matrix2
         end if
 
-        maxVariationEXS=subspaceInfo(isubExcited)%dimension
-        startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
-        startBasisEXS=subspaceInfo(isubExcited)%start_input
+        !maxVariationEXS=subspaceInfo(isubExcited)%dimension
+        !startEigenvecEXS=subspaceInfo(isubExcited)%count_eigenvector
+        !startBasisEXS=subspaceInfo(isubExcited)%start_input
 
         dim_EX=subspaceInfo(isubExcited)%dimension
         rmax_EX=subspaceInfo(isubExcited)%dimension
@@ -194,10 +193,10 @@ subroutine spikeZeroTemperature( iteration )
          dim_EX,rmax_EX, eigenvec_min_EX, basis_min_EX, basis_max_EX, &
          ip, spike_subk)
 
-        do iexs=startBasisEXS, startBasisEXS+maxVariationEXS-1
+        do iexs=basis_min_EX, basis_min_EX+rmax_EX-1
            eigenEXS=eigenvalue(iexs)
 
-           tmp_spike_value = spike_subk(1, iexs-startBasisEXS+1)
+           tmp_spike_value = spike_subk(1, iexs-basis_min_EX+1)
            tmp_spike(1,1)=-eigenEXS*scale(iteration)
            tmp_spike(1,2)=tmp_spike_value*tmp_spike_value/pf
 

@@ -62,7 +62,7 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
     !invariant matrix for subspace
     double precision, allocatable :: invariant_matrix_sub(:,:)
     external :: dgemm
-    double precision, parameter :: alpha=1.0, beta=0.0
+    double precision, parameter :: alpha=1.0d0, beta=0.0d0
     integer:: rowA, columnA, rowB, columnB, rowC, columnC
 
     call startCount("invMatSpec")
@@ -279,8 +279,8 @@ subroutine invariantMatrixForSpectrumDGEMM(iteration)
 
         do imat=1, size(countMatrix)
             imatrix = countMatrix(imat)
-            tmp1=0.0
-            invariant_matrix_sub=0.0
+            tmp1=0.0d0
+            invariant_matrix_sub=0.0d0
 
             !print*,"matrix kind:", ip
             !print*, coefMatrix(:,:,ip)

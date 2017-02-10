@@ -50,7 +50,7 @@ subroutine invariantMatrixDGEMM(iteration)
 
     double precision, allocatable :: vectorL(:,:), vectorR(:,:), coefMatrix(:,:,:)
     external :: dgemm
-    double precision, parameter :: alpha=1.0, beta=0.0
+    double precision, parameter :: alpha=1.0d0, beta=0.0d0
     integer:: rowA, columnA, rowB, columnB, rowC, columnC
 
     integer :: p, m, startOfBasisOutput
@@ -213,11 +213,11 @@ subroutine invariantMatrixDGEMM(iteration)
 
             !vector L transposed
             allocate (vectorL(keeped_basis_number(ileft), rmax_left))
-            vectorL=0.0
+            vectorL=0.0d0
 
 
             allocate (vectorR(rmax_right,keeped_basis_number(iright)))
-            vectorR=0.0
+            vectorR=0.0d0
 
             do isubl=1, keeped_basis_number(ileft)
                 vectorL(isubl, 1:rmax_left)=eigenvector(eigenvec_min_left+(isubl-1)*rmax_left:eigenvec_min_left+isubl+rmax_left-1)
@@ -230,7 +230,7 @@ subroutine invariantMatrixDGEMM(iteration)
 
             allocate (coefMatrix(rmax_left,rmax_right,hami%numberOfConductionMatrix))
 
-            coefMatrix=0.0
+            coefMatrix=0.0d0
 
 
             do isubl=basis_min_left, basis_max_left
@@ -283,8 +283,8 @@ subroutine invariantMatrixDGEMM(iteration)
 
             do ip=1, hami%numberOfConductionMatrix
 
-                tmp1=0.0
-                invariant_matrix_sub=0.0
+                tmp1=0.0d0
+                invariant_matrix_sub=0.0d0
 
                 !print*,"matrix kind:", ip
                 !print*, coefMatrix(:,:,ip)

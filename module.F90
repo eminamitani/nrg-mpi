@@ -1040,7 +1040,7 @@ contains
     double precision, allocatable :: tmp1(:,:)
     double precision :: spike_temp, coef
     external :: dgemm
-    double precision, parameter :: alpha=1.0, beta=0.0
+    double precision, parameter :: alpha=1.0d0, beta=0.0d0
     integer:: rowA, columnA, rowB, columnB, rowC, columnC
 
     call startCount("spectElem")
