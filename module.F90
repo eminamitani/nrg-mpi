@@ -1233,6 +1233,10 @@ contains
        i2=numberOfBin
     end if
 
+    if (positionReference .le. 0) then
+        positionReference =1
+    end if
+
     if (i1==i2 .and. i1>0 .and. i2>0) then
        container(i1+(matrixType-1)*numberOfBin,2) &
             = container(i1+(matrixType-1)*numberOfBin,2)+spike(1,2)
